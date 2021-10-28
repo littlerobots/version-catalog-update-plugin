@@ -422,4 +422,29 @@ class VersionCatalogTest {
             result.plugins["myplugin"]
         )
     }
+
+    @Test
+    fun `keeps unspecified version on update`() {
+        val catalog = VersionCatalogParser().parse(
+            """
+            [libraries]
+            mylib = { module = "nl.littlerobots.test:example" }
+            """.trimIndent().byteInputStream()
+        )
+
+        val update = VersionCatalogParser().parse(
+            """
+            [libraries]
+            update = "nl.littlerobots.test:example:1.1"
+            """.trimIndent().byteInputStream()
+        )
+
+        val result = catalog.updateFrom(update)
+
+        assertEquals(1, result.libraries.size)
+        assertEquals(
+            Library(module = "nl.littlerobots.test:example", version = VersionDefinition.Unspecified),
+            result.libraries["mylib"]
+        )
+    }
 }

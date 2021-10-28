@@ -237,4 +237,24 @@ class VersionCatalogParserTest {
             result.plugins["reference-notation"]!!
         )
     }
+
+    @Test
+    // not explicitly supported in the Gradle docs, but seems to be allowed
+    fun `parses libraries without version specification`() {
+        val toml = """
+            [libraries]
+            lib = { module = "nl.littlerobots.test:test" }
+        """.trimIndent()
+
+        val parser = VersionCatalogParser()
+
+        val result = parser.parse(toml.byteInputStream())
+
+        assertEquals(1, result.libraries.size)
+        assertNotNull(result.libraries["lib"])
+        assertEquals(
+            Library(module = "nl.littlerobots.test:test", version = VersionDefinition.Unspecified),
+            result.libraries["lib"]!!
+        )
+    }
 }

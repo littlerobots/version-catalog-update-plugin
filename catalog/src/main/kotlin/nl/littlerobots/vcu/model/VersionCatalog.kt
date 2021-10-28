@@ -38,7 +38,12 @@ fun VersionCatalog.updateFrom(
     val libraryKeys = this.libraries.map { it.value.module to it.key }.toMap()
     val updatedLibraries = catalog.libraries.mapNotNull { entry ->
         libraryKeys[entry.value.module]?.let {
-            it to entry.value
+            val currentLib = this.libraries[it]!!
+            if (currentLib.version == VersionDefinition.Unspecified) {
+                it to entry.value.copy(version = VersionDefinition.Unspecified)
+            } else {
+                it to entry.value
+            }
         } ?: if (addNew) (entry.key to entry.value) else null
     }.toMap()
 

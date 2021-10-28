@@ -82,6 +82,7 @@ class VersionCatalogWriter {
                 append(" } }")
             }.toString()
         }
+        is VersionDefinition.Unspecified -> "{ id = \"${plugin.id}\" }"
     }
 
     /**
@@ -102,5 +103,6 @@ class VersionCatalogWriter {
                 append(" } }")
             }.toString()
         }
+        is VersionDefinition.Unspecified -> "{ module = \"${library.module}\" }"
     }
 }

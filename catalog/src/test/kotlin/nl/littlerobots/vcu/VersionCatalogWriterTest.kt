@@ -183,4 +183,25 @@ class VersionCatalogWriterTest {
             writer.toString()
         )
     }
+
+    @Test
+    fun `omits unspecified version for library entry`() {
+        val catalogWriter = VersionCatalogWriter()
+        val writer = StringWriter()
+        val catalog = VersionCatalog(
+            emptyMap(),
+            mapOf("lib" to Library(module = "nl.littlerobots.test:example", version = VersionDefinition.Unspecified)),
+            emptyMap(),
+            emptyMap()
+        )
+        catalogWriter.write(catalog, writer)
+
+        assertEquals(
+            """[libraries]
+               |lib = { module = "nl.littlerobots.test:example" }
+               |
+        """.trimMargin(),
+            writer.toString()
+        )
+    }
 }
