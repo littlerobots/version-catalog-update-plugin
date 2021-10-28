@@ -1,0 +1,21 @@
+pluginManagement {
+
+    plugins {
+        id 'org.jetbrains.kotlin.jvm' version '1.5.31'
+        id "org.jetbrains.kotlin.kapt" version "1.5.31"
+        id "com.diffplug.spotless" version "5.17.1"
+    }
+
+    repositories {
+
+    }
+
+    dependencyResolutionManagement {
+        repositories {
+            mavenCentral()
+        }
+    }
+}
+
+include ":catalog"
+include ":plugin"

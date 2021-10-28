@@ -1,0 +1,5 @@
+plugins {
+    id "com.diffplug.spotless"
+}
+
+apply from: 'gradle/spotless.gradle'

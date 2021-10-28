@@ -1,0 +1,32 @@
+plugins {
+    id "org.jetbrains.kotlin.jvm"
+    id 'java-gradle-plugin'
+}
+
+compileKotlin {
+    kotlinOptions {
+        jvmTarget = "1.8"
+        languageVersion = "1.3"
+    }
+}
+
+gradlePlugin {
+    plugins {
+        simplePlugin {
+            id = 'nl.littlerobots.version-catalog'
+            implementationClass = 'nl.littlerobots.vcu.plugin.VersionCatalogPlugin'
+        }
+    }
+}
+
+repositories {
+    gradlePluginPortal()
+}
+
+dependencies {
+    implementation project(":catalog")
+
+    testImplementation 'junit:junit:4.13.2'
+    testImplementation 'com.github.ben-manes:gradle-versions-plugin:0.39.0'
+    compileOnly 'com.github.ben-manes:gradle-versions-plugin:0.39.0'
+}
