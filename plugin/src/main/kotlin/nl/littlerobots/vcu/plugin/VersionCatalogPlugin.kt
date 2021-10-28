@@ -39,12 +39,12 @@ class VersionCatalogPlugin : Plugin<Project> {
             throw IllegalStateException("Should be applied to the roort project only")
         }
 
-        val extension = project.extensions.create(EXTENSION_NAME, VersionCatalogPluginExtension::class.java)
+        project.extensions.create(EXTENSION_NAME, VersionCatalogPluginExtension::class.java)
 
         // TODO see if we can configure the output format in other ways or if this is fine
         System.setProperty("outputFormatter", "json,xml,plain")
 
-        val reportJson = project.objects.property(File::class.java)
+        val reportJson = project.objects.fileProperty()
 
         val dependencyUpdatesTask =
             project.tasks.named(DEPENDENCY_UPDATES_TASK_NAME, DependencyUpdatesTask::class.java) {

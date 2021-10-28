@@ -20,14 +20,14 @@ import nl.littlerobots.vcu.model.Library
 import nl.littlerobots.vcu.model.Plugin
 import nl.littlerobots.vcu.model.VersionCatalog
 import nl.littlerobots.vcu.model.VersionDefinition
-import java.io.Reader
+import java.io.InputStream
 
 class VersionCatalogParser {
 
     @Suppress("UNCHECKED_CAST")
-    fun parse(reader: Reader): VersionCatalog {
+    fun parse(inputStream: InputStream): VersionCatalog {
         val mapper = TomlMapper()
-        val catalog = mapper.readValue(reader, Map::class.java) as Map<String, Any>
+        val catalog = inputStream.use { mapper.readValue(it, Map::class.java) as Map<String, Any> }
 
         val versions = catalog.getTable("versions")?.toTypedMap<String>() ?: emptyMap()
         val libraries = catalog.getTable("libraries")?.toDependencyMap() ?: emptyMap()

@@ -13,9 +13,8 @@
 * See the License for the specific language governing permissions and
 * limitations under the License.
 */
-package nl.littlerobots.vcu.versions
+package nl.littlerobots.vcu
 
-import nl.littlerobots.vcu.VersionCatalogParser
 import nl.littlerobots.vcu.model.Library
 import nl.littlerobots.vcu.model.Plugin
 import nl.littlerobots.vcu.model.VersionDefinition
@@ -33,7 +32,7 @@ class VersionCatalogParserTest {
         """.trimIndent()
         val parser = VersionCatalogParser()
 
-        val result = parser.parse(toml.byteInputStream().reader())
+        val result = parser.parse(toml.byteInputStream())
 
         assertEquals(mapOf("test" to "1.0.0", "test2" to "2.0.0"), result.versions)
     }
@@ -46,7 +45,7 @@ class VersionCatalogParserTest {
         """.trimIndent()
         val parser = VersionCatalogParser()
 
-        val result = parser.parse(toml.byteInputStream().reader())
+        val result = parser.parse(toml.byteInputStream())
 
         assertEquals(mapOf("test" to listOf("lib1", "lib2")), result.bundles)
     }
@@ -59,7 +58,7 @@ class VersionCatalogParserTest {
         """.trimIndent()
         val parser = VersionCatalogParser()
 
-        val result = parser.parse(toml.byteInputStream().reader())
+        val result = parser.parse(toml.byteInputStream())
 
         assertEquals(1, result.libraries.size)
         assertNotNull(result.libraries["test"])
@@ -81,7 +80,7 @@ class VersionCatalogParserTest {
         """.trimIndent()
         val parser = VersionCatalogParser()
 
-        val result = parser.parse(toml.byteInputStream().reader())
+        val result = parser.parse(toml.byteInputStream())
 
         assertEquals(1, result.libraries.size)
         assertNotNull(result.libraries["test"])
@@ -102,7 +101,7 @@ class VersionCatalogParserTest {
         """.trimIndent()
         val parser = VersionCatalogParser()
 
-        val result = parser.parse(toml.byteInputStream().reader())
+        val result = parser.parse(toml.byteInputStream())
 
         assertEquals(1, result.libraries.size)
         assertNotNull(result.libraries["test"])
@@ -124,7 +123,7 @@ class VersionCatalogParserTest {
         """.trimIndent()
         val parser = VersionCatalogParser()
 
-        parser.parse(toml.byteInputStream().reader())
+        parser.parse(toml.byteInputStream())
     }
 
     @Test(expected = IllegalStateException::class)
@@ -135,7 +134,7 @@ class VersionCatalogParserTest {
         """.trimIndent()
         val parser = VersionCatalogParser()
 
-        parser.parse(toml.byteInputStream().reader())
+        parser.parse(toml.byteInputStream())
     }
 
     @Test
@@ -146,7 +145,7 @@ class VersionCatalogParserTest {
         """.trimIndent()
         val parser = VersionCatalogParser()
 
-        val result = parser.parse(toml.byteInputStream().reader())
+        val result = parser.parse(toml.byteInputStream())
 
         assertEquals(1, result.libraries.size)
         assertNotNull(result.libraries["test"])
@@ -168,7 +167,7 @@ class VersionCatalogParserTest {
         """.trimIndent()
         val parser = VersionCatalogParser()
 
-        val result = parser.parse(toml.byteInputStream().reader())
+        val result = parser.parse(toml.byteInputStream())
 
         assertEquals(1, result.libraries.size)
         assertNotNull(result.libraries["test"])
@@ -191,7 +190,7 @@ class VersionCatalogParserTest {
 
         val parser = VersionCatalogParser()
 
-        val result = parser.parse(toml.byteInputStream().reader())
+        val result = parser.parse(toml.byteInputStream())
 
         assertEquals(1, result.plugins.size)
         assertNotNull(result.plugins["short-notation"])
@@ -210,7 +209,7 @@ class VersionCatalogParserTest {
 
         val parser = VersionCatalogParser()
 
-        val result = parser.parse(toml.byteInputStream().reader())
+        val result = parser.parse(toml.byteInputStream())
 
         assertEquals(1, result.plugins.size)
         assertNotNull(result.plugins["long-notation"])
@@ -229,7 +228,7 @@ class VersionCatalogParserTest {
 
         val parser = VersionCatalogParser()
 
-        val result = parser.parse(toml.byteInputStream().reader())
+        val result = parser.parse(toml.byteInputStream())
 
         assertEquals(1, result.plugins.size)
         assertNotNull(result.plugins["reference-notation"])

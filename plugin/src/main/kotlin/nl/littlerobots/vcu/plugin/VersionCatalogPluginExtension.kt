@@ -15,10 +15,8 @@
 */
 package nl.littlerobots.vcu.plugin
 
-import org.gradle.api.provider.Property
-
-interface VersionCatalogPluginExtension {
-    val sortByKey: Property<Boolean>
-    val addDependencies: Property<Boolean>
-    val keepUnused: Property<Boolean>
+abstract class VersionCatalogPluginExtension {
+    var sortByKey: Boolean = true
+    var addDependencies: Boolean = false
+    var keepUnused: Boolean = false
 }

@@ -24,6 +24,7 @@ import nl.littlerobots.vcu.versions.VersionReportParser
 import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
 import org.gradle.api.artifacts.ExternalDependency
+import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.TaskAction
@@ -31,10 +32,10 @@ import org.gradle.api.tasks.options.Option
 import java.io.File
 
 abstract class VersionCatalogUpdateTask : DefaultTask() {
-    @get:Internal
-    abstract val reportJson: Property<File>
+    @get:Internal // not input because it still needs to run since the target toml file could have changed
+    abstract val reportJson: RegularFileProperty
 
-    @get:Internal
+    @get:Internal // not output because the file can be changed manually too
     abstract val catalogFile: Property<File>
 
     @set:Option(option = "create", description = "Create libs.versions.toml based on current dependencies")
@@ -58,21 +59,21 @@ abstract class VersionCatalogUpdateTask : DefaultTask() {
     fun updateCatalog() {
         val extension = project.extensions.getByType(VersionCatalogPluginExtension::class.java)
 
-        val addDependencies = addDependencies ?: extension.addDependencies.getOrElse(false)
-        val keepUnused = keepUnusedDependencies ?: extension.keepUnused.getOrElse(false)
+        val addDependencies = addDependencies ?: extension.addDependencies
+        val keepUnused = keepUnusedDependencies ?: extension.keepUnused
 
         val reportParser = VersionReportParser()
         val pluginModules = project.buildscript.configurations.flatMap { configuration ->
             configuration.dependencies.filterIsInstance<ExternalDependency>().map { "${it.group}:${it.name}" }.toList()
         }
 
-        val catalogFromDependencies = reportParser.generateCatalog(reportJson.get().inputStream(), pluginModules)
+        val catalogFromDependencies = reportParser.generateCatalog(reportJson.get().asFile.inputStream(), pluginModules)
         val currentCatalog = if (catalogFile.get().exists()) {
             if (createCatalog) {
                 throw GradleException("${catalogFile.get()} already exists and cannot be created from scratch.")
             }
             val catalogParser = VersionCatalogParser()
-            catalogParser.parse(catalogFile.get().reader())
+            catalogParser.parse(catalogFile.get().inputStream())
         } else {
             if (createCatalog) {
                 VersionCatalog(emptyMap(), emptyMap(), emptyMap(), emptyMap())
@@ -86,7 +87,7 @@ abstract class VersionCatalogUpdateTask : DefaultTask() {
             addNew = addDependencies || createCatalog,
             purge = !keepUnused
         ).let {
-            if (extension.sortByKey.getOrElse(true)) {
+            if (extension.sortByKey) {
                 it.sortKeys()
             } else {
                 it
