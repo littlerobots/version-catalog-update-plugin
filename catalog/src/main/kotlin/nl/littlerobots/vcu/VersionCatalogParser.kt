@@ -86,7 +86,7 @@ private fun Map<String, Any>.toDependencyMap(): Map<String, Library> = toTypedMa
             val version = versionRef?.let {
                 VersionDefinition.Reference(it)
             } ?: value["version"]?.toDependencyVersion()
-            ?: throw IllegalStateException("Could not parse version or version.ref for ${entry.key}")
+                ?: throw IllegalStateException("Could not parse version or version.ref for ${entry.key}")
 
             if (module == null && (group == null || name == null)) {
                 throw IllegalStateException("${entry.key} should define module or group/name")

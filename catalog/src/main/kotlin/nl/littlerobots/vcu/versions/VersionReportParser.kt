@@ -46,8 +46,8 @@ class VersionReportParser {
                 report.outdated.dependencies +
                 report.unresolved.dependencies
             ).toSortedSet(
-                compareBy({ it.group }, { it.name })
-            )
+            compareBy({ it.group }, { it.name })
+        )
 
         val shortNames = dependencies.groupBy {
             it.tomlKey

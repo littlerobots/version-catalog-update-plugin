@@ -48,9 +48,9 @@ class VersionCatalogWriter {
             for (bundle in versionCatalog.bundles) {
                 printWriter.println(
                     "${bundle.key} = [${
-                        bundle.value.joinToString(
-                            ", "
-                        ) { "\"${it}\"" }
+                    bundle.value.joinToString(
+                        ", "
+                    ) { "\"${it}\"" }
                     }]"
                 )
             }
