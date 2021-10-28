@@ -53,13 +53,91 @@ fun VersionCatalog.updateFrom(
         }
     }
 
+    val pluginKeys = this.plugins.map {
+        it.value.id to it.key
+    }.toMap()
+
+    // for plugins find the id in the current map
+    val pluginUpdates = catalog.plugins.mapNotNull { entry ->
+        pluginKeys[entry.value.id]?.let {
+            it to entry.value
+        } ?: if (addNew) entry.key to entry.value else null
+    }.toMap()
+
+    val plugins = this.plugins.toMutableMap().apply {
+        putAll(pluginUpdates)
+        // no pruning here until we can get the plugins in a more reliable way
+    }
+
     val versions = this.versions.toMutableMap()
+
+    retainCurrentVersionReferences(versions, libraries, plugins)
 
     // collect this.libraries references that point to a single group
     // check libraries for possible groupings (= same group + same version)
     // reuse if reference exist or create if group size > 1
-
     // collect all version refs that point to a single group with all the libs using the same version
+    collectVersionReferenceForGroups(libraries, versions)
+
+    return this.copy(
+        versions = versions,
+        libraries = libraries,
+        plugins = plugins
+    ).updateBundles()
+        .pruneVersions()
+}
+
+private fun VersionCatalog.retainCurrentVersionReferences(
+    newVersions: MutableMap<String, String>,
+    newLibraries: MutableMap<String, Library>,
+    newPlugins: MutableMap<String, Plugin>
+) {
+    // all library, plugin keys using a version (before)
+    val versionsToCurrentKeys = this.versions.mapValues { version ->
+        // find the library & plugin keys referencing this value
+        this.libraries.filterValues {
+            it.version is VersionDefinition.Reference && it.version.ref == version.key
+        }.map {
+            Key(it.key, it.value)
+        } + this.plugins.filterValues {
+            it.version is VersionDefinition.Reference && it.version.ref == version.key
+        }.map {
+            Key(it.key, it.value)
+        }
+    }
+
+    versionsToCurrentKeys.entries.forEach { entry ->
+        // select the entry with the most referenced keys if there's more than one
+        val bestEntry = entry.value.mapNotNull { key ->
+            when (key.entry) {
+                is Library -> newLibraries[key.key]?.let { Key(key.key, it) }
+                is Plugin -> newPlugins[key.key]?.let { Key(key.key, it) }
+                else -> null
+            }
+        }.filter {
+            it.entry.version is VersionDefinition.Simple
+        }.groupBy {
+            (it.entry.version as VersionDefinition.Simple).version
+        }.maxBy {
+            it.value.size
+        }
+
+        if (bestEntry != null) {
+            newVersions[entry.key] = bestEntry.key
+            bestEntry.value.forEach {
+                when (it.entry) {
+                    is Library -> newLibraries[it.key] = it.entry.copy(version = VersionDefinition.Reference(entry.key))
+                    is Plugin -> newPlugins[it.key] = it.entry.copy(version = VersionDefinition.Reference(entry.key))
+                }
+            }
+        }
+    }
+}
+
+private fun VersionCatalog.collectVersionReferenceForGroups(
+    libraries: MutableMap<String, Library>,
+    versions: MutableMap<String, String>
+) {
     val groupIdVersionRef = this.libraries.values.filter {
         it.version is VersionDefinition.Reference
     }.groupBy {
@@ -85,7 +163,6 @@ fun VersionCatalog.updateFrom(
             existing == null && entry.value.size > 1 -> entry.key.replace('.', '-')
             else -> existing
         }
-
         reference?.let { ref ->
             versions[ref] = (entry.value.first().version as VersionDefinition.Simple).version
             for (lib in entry.value) {
@@ -94,29 +171,6 @@ fun VersionCatalog.updateFrom(
             }
         }
     }
-
-    val pluginKeys = this.plugins.map {
-        it.value.id to it.key
-    }.toMap()
-
-    // for plugins find the id in the current map
-    val pluginUpdates = catalog.plugins.mapNotNull { entry ->
-        pluginKeys[entry.value.id]?.let {
-            it to entry.value
-        } ?: if (addNew) entry.key to entry.value else null
-    }.toMap()
-
-    val plugins = this.plugins.toMutableMap().apply {
-        putAll(pluginUpdates)
-        // no pruning here until we can get the plugins in a more reliable way
-    }
-
-    return this.copy(
-        versions = versions,
-        libraries = libraries,
-        plugins = plugins
-    ).updateBundles()
-        .pruneVersions()
 }
 
 internal fun VersionCatalog.pruneVersions(): VersionCatalog {
@@ -152,6 +206,11 @@ internal fun VersionCatalog.updateBundles(): VersionCatalog {
         }
     )
 }
+
+private data class Key<T : HasVersion>(
+    val key: String,
+    val entry: T
+)
 
 fun VersionCatalog.sortKeys(): VersionCatalog {
     return copy(

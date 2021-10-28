@@ -15,7 +15,6 @@
 */
 package nl.littlerobots.vcu.model
 
-data class Plugin(
-    val id: String,
-    override val version: VersionDefinition
-) : HasVersion
+interface HasVersion {
+    val version: VersionDefinition
+}

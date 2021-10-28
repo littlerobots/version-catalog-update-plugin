@@ -159,6 +159,105 @@ class VersionCatalogTest {
     }
 
     @Test
+    fun `updateCatalog updates version reference if defined`() {
+        val catalog = VersionCatalog(
+            mapOf("my-lib" to "1.0"),
+            mapOf(
+                "generated-library-reference" to Library(
+                    module = "nl.littlerobots.test:example",
+                    version = VersionDefinition.Reference("my-lib")
+                )
+            ),
+            emptyMap(),
+            emptyMap()
+        )
+        val updatedCatalog = VersionCatalog(
+            emptyMap(),
+            mapOf(
+                "generated-library-reference" to Library(
+                    module = "nl.littlerobots.test:example",
+                    version = VersionDefinition.Simple("1.1")
+                )
+            ),
+            emptyMap(),
+            emptyMap()
+        )
+
+        val result = catalog.updateFrom(updatedCatalog, true)
+
+        assertEquals(1, result.libraries.size)
+        assertNotNull(result.libraries["generated-library-reference"])
+        assertNotNull(result.versions["my-lib"])
+        assertEquals(
+            Library(
+                module = "nl.littlerobots.test:example",
+                version = VersionDefinition.Reference("my-lib")
+            ),
+            result.libraries["generated-library-reference"]
+        )
+        assertEquals("1.1", result.versions["my-lib"])
+    }
+
+    @Test
+    fun `updateCatalog updates version reference for multiple libraries`() {
+        val catalog = VersionCatalog(
+            mapOf("my-lib" to "1.0"),
+            mapOf(
+                "generated-library-reference" to Library(
+                    module = "nl.littlerobots.test:example",
+                    version = VersionDefinition.Reference("my-lib")
+                ),
+                // different group id
+                "generated-library-reference-2" to Library(
+                    module = "nl.littlerobots.test2:example",
+                    version = VersionDefinition.Reference("my-lib")
+                )
+            ),
+            emptyMap(),
+            mapOf("plugin" to Plugin("my.plugin.id", version = VersionDefinition.Reference("my-lib")))
+        )
+        val updatedCatalog = VersionCatalog(
+            emptyMap(),
+            mapOf(
+                "generated-library-reference" to Library(
+                    module = "nl.littlerobots.test:example",
+                    version = VersionDefinition.Simple("1.1")
+                ),
+                "generated-library-reference-2" to Library(
+                    module = "nl.littlerobots.test2:example",
+                    version = VersionDefinition.Simple("1.1")
+                )
+            ),
+            emptyMap(),
+            mapOf("plugin" to Plugin("my.plugin.id", version = VersionDefinition.Simple("1.1")))
+        )
+
+        val result = catalog.updateFrom(updatedCatalog, true)
+
+        assertEquals(2, result.libraries.size)
+        assertNotNull(result.libraries["generated-library-reference"])
+        assertNotNull(result.versions["my-lib"])
+        assertEquals(
+            Library(
+                module = "nl.littlerobots.test:example",
+                version = VersionDefinition.Reference("my-lib")
+            ),
+            result.libraries["generated-library-reference"]
+        )
+        assertEquals(
+            Library(
+                module = "nl.littlerobots.test2:example",
+                version = VersionDefinition.Reference("my-lib")
+            ),
+            result.libraries["generated-library-reference-2"]
+        )
+
+        assertEquals(1, result.plugins.size)
+        assertEquals(Plugin("my.plugin.id", version = VersionDefinition.Reference("my-lib")), result.plugins["plugin"])
+        assertEquals("1.1", result.versions["my-lib"])
+    }
+
+    @Test
     fun `updateCatalog updates version`() {
         val catalog = VersionCatalog(
             emptyMap(),
@@ -204,7 +303,7 @@ class VersionCatalogTest {
             junit = "junit:junit:4.13.2"
             firebase-auth = "com.google.firebase:firebase-auth:21.0.1"
             firebase-bom = "com.google.firebase:firebase-bom:28.4.2"
-            """.trimIndent().reader()
+            """.trimIndent().byteInputStream()
         )
 
         val updatedCatalog = VersionCatalogParser().parse(
@@ -214,7 +313,7 @@ class VersionCatalogTest {
             com-google-firebase-firebase-bom = "com.google.firebase:firebase-bom:28.4.2"
             junit = "junit:junit:4.13.2"
             org-jetbrains-kotlin-kotlin-scripting-compiler-embeddable = "org.jetbrains.kotlin:kotlin-scripting-compiler-embeddable:1.5.31"
-            """.trimIndent().reader()
+            """.trimIndent().byteInputStream()
         )
 
         val result = catalog.updateFrom(updatedCatalog, addNew = true)
@@ -270,7 +369,7 @@ class VersionCatalogTest {
             junit = { module = "junit:junit", version.ref = "junit" }
             [plugins]
             myplugin = { id = "test", version.ref = "plugin" }
-            """.trimIndent().reader()
+            """.trimIndent().byteInputStream()
         )
 
         val result = catalog.pruneVersions()
@@ -289,7 +388,7 @@ class VersionCatalogTest {
             example = ["junit", "missing"]
             sorted = ["junit", "alib"]
             stale = ["old", "older" ]
-            """.trimIndent().reader()
+            """.trimIndent().byteInputStream()
         )
 
         val result = catalog.updateBundles()
@@ -305,14 +404,14 @@ class VersionCatalogTest {
             """
             [plugins]
             myplugin = "some.plugin.id:1.4"
-            """.trimIndent().reader()
+            """.trimIndent().byteInputStream()
         )
 
         val update = VersionCatalogParser().parse(
             """
             [plugins]
             incoming-plugin = "some.plugin.id:1.5"
-            """.trimIndent().reader()
+            """.trimIndent().byteInputStream()
         )
 
         val result = catalog.updateFrom(update)
