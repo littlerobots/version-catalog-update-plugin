@@ -1,3 +1,18 @@
+/*
+* Copyright 2021 Hugo Visser
+*
+* Licensed under the Apache License, Version 2.0 (the "License");
+* you may not use this file except in compliance with the License.
+* You may obtain a copy of the License at
+*
+* http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
+*/
 package nl.littlerobots.vcu.model
 
 import nl.littlerobots.vcu.VersionCatalogParser
@@ -35,7 +50,8 @@ class VersionCatalogTest {
             Library(
                 module = "nl.littlerobots.test:example",
                 version = VersionDefinition.Simple("1.0")
-            ), result.libraries["generated-library-reference"]
+            ),
+            result.libraries["generated-library-reference"]
         )
     }
 
@@ -73,13 +89,15 @@ class VersionCatalogTest {
             Library(
                 module = "nl.littlerobots.test:example",
                 version = VersionDefinition.Reference("nl-littlerobots-test")
-            ), result.libraries["generated-library-reference"]
+            ),
+            result.libraries["generated-library-reference"]
         )
         assertEquals(
             Library(
                 module = "nl.littlerobots.test:example2",
                 version = VersionDefinition.Reference("nl-littlerobots-test")
-            ), result.libraries["generated-library-reference-2"]
+            ),
+            result.libraries["generated-library-reference-2"]
         )
         assertEquals("1.0", result.versions["nl-littlerobots-test"])
     }
@@ -127,13 +145,15 @@ class VersionCatalogTest {
             Library(
                 module = "nl.littlerobots.test:example",
                 version = VersionDefinition.Reference("my-lib")
-            ), result.libraries["generated-library-reference"]
+            ),
+            result.libraries["generated-library-reference"]
         )
         assertEquals(
             Library(
                 module = "nl.littlerobots.test:example2",
                 version = VersionDefinition.Reference("my-lib")
-            ), result.libraries["generated-library-reference-2"]
+            ),
+            result.libraries["generated-library-reference-2"]
         )
         assertEquals("1.1", result.versions["my-lib"])
     }
@@ -171,7 +191,8 @@ class VersionCatalogTest {
             Library(
                 module = "nl.littlerobots.test:example",
                 version = VersionDefinition.Simple("1.1")
-            ), result.libraries["my-library"]
+            ),
+            result.libraries["my-library"]
         )
     }
 
@@ -183,7 +204,7 @@ class VersionCatalogTest {
             junit = "junit:junit:4.13.2"
             firebase-auth = "com.google.firebase:firebase-auth:21.0.1"
             firebase-bom = "com.google.firebase:firebase-bom:28.4.2"
-        """.trimIndent().reader()
+            """.trimIndent().reader()
         )
 
         val updatedCatalog = VersionCatalogParser().parse(
@@ -193,7 +214,7 @@ class VersionCatalogTest {
             com-google-firebase-firebase-bom = "com.google.firebase:firebase-bom:28.4.2"
             junit = "junit:junit:4.13.2"
             org-jetbrains-kotlin-kotlin-scripting-compiler-embeddable = "org.jetbrains.kotlin:kotlin-scripting-compiler-embeddable:1.5.31"
-        """.trimIndent().reader()
+            """.trimIndent().reader()
         )
 
         val result = catalog.updateFrom(updatedCatalog, addNew = true)
@@ -248,8 +269,8 @@ class VersionCatalogTest {
             [libraries]
             junit = { module = "junit:junit", version.ref = "junit" }
             [plugins]
-            myplugin = { id = "test", version.ref = "plugin" }                                
-        """.trimIndent().reader()
+            myplugin = { id = "test", version.ref = "plugin" }
+            """.trimIndent().reader()
         )
 
         val result = catalog.pruneVersions()
@@ -262,13 +283,13 @@ class VersionCatalogTest {
         val catalog = VersionCatalogParser().parse(
             """
             [libraries]
-            junit = "junit:junit:4.13.2" 
+            junit = "junit:junit:4.13.2"
             alib = "alib:alib:1.0.0"
             [bundles]
             example = ["junit", "missing"]
-            sorted = ["junit", "alib"] 
-            stale = ["old", "older" ]                                                              
-        """.trimIndent().reader()
+            sorted = ["junit", "alib"]
+            stale = ["old", "older" ]
+            """.trimIndent().reader()
         )
 
         val result = catalog.updateBundles()
@@ -282,16 +303,16 @@ class VersionCatalogTest {
     fun `updates existing plugin reference`() {
         val catalog = VersionCatalogParser().parse(
             """
-            [plugins]           
-            myplugin = "some.plugin.id:1.4"                           
-        """.trimIndent().reader()
+            [plugins]
+            myplugin = "some.plugin.id:1.4"
+            """.trimIndent().reader()
         )
 
         val update = VersionCatalogParser().parse(
             """
-            [plugins]           
-            incoming-plugin = "some.plugin.id:1.5"                           
-        """.trimIndent().reader()
+            [plugins]
+            incoming-plugin = "some.plugin.id:1.5"
+            """.trimIndent().reader()
         )
 
         val result = catalog.updateFrom(update)
