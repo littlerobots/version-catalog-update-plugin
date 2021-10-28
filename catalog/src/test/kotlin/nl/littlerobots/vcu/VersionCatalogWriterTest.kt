@@ -16,6 +16,7 @@
 package nl.littlerobots.vcu
 
 import nl.littlerobots.vcu.model.Library
+import nl.littlerobots.vcu.model.Plugin
 import nl.littlerobots.vcu.model.VersionCatalog
 import nl.littlerobots.vcu.model.VersionDefinition
 import org.junit.Assert.assertEquals
@@ -121,7 +122,7 @@ class VersionCatalogWriterTest {
     }
 
     @Test
-    fun `writes bundle definiton`() {
+    fun `writes bundle definition`() {
         val catalogWriter = VersionCatalogWriter()
         val writer = StringWriter()
         val catalog = VersionCatalog(
@@ -135,6 +136,48 @@ class VersionCatalogWriterTest {
         assertEquals(
             """[bundles]
                |test = ["lib1", "lib2"]
+               |
+        """.trimMargin(),
+            writer.toString()
+        )
+    }
+
+    @Test
+    fun `writes simple plugin definition`() {
+        val catalogWriter = VersionCatalogWriter()
+        val writer = StringWriter()
+        val catalog = VersionCatalog(
+            emptyMap(),
+            emptyMap(),
+            emptyMap(),
+            mapOf("test" to Plugin("my.plugin.id", VersionDefinition.Simple("1.0")))
+        )
+        catalogWriter.write(catalog, writer)
+
+        assertEquals(
+            """[plugins]
+               |test = "my.plugin.id:1.0"
+               |
+        """.trimMargin(),
+            writer.toString()
+        )
+    }
+
+    @Test
+    fun `writes plugin definition with version reference`() {
+        val catalogWriter = VersionCatalogWriter()
+        val writer = StringWriter()
+        val catalog = VersionCatalog(
+            emptyMap(),
+            emptyMap(),
+            emptyMap(),
+            mapOf("test" to Plugin("my.plugin.id", VersionDefinition.Reference("my-version")))
+        )
+        catalogWriter.write(catalog, writer)
+
+        assertEquals(
+            """[plugins]
+               |test = { id = "my.plugin.id", version.ref = "my-version" }
                |
         """.trimMargin(),
             writer.toString()

@@ -61,7 +61,7 @@ class VersionCatalogWriter {
             }
             printWriter.println("[plugins]")
             for (plugin in versionCatalog.plugins) {
-                printWriter.println("${plugin.key} = \"${formatPlugin(plugin.value)}\"")
+                printWriter.println("${plugin.key} = ${formatPlugin(plugin.value)}")
             }
         }
 
@@ -70,7 +70,7 @@ class VersionCatalogWriter {
     }
 
     private fun formatPlugin(plugin: Plugin): String = when (plugin.version) {
-        is VersionDefinition.Simple -> "${plugin.id}:${plugin.version.version}"
+        is VersionDefinition.Simple -> "\"${plugin.id}:${plugin.version.version}\""
         is VersionDefinition.Reference -> "{ id = \"${plugin.id}\", version.ref = \"${plugin.version.ref}\" }"
         is VersionDefinition.Condition -> {
             StringBuilder("{ id = \"${plugin.id}\", version = { ").apply {
