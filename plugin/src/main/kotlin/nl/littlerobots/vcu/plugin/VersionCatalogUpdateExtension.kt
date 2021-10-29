@@ -15,8 +15,14 @@
 */
 package nl.littlerobots.vcu.plugin
 
-abstract class VersionCatalogPluginExtension {
+import org.gradle.api.Project
+
+abstract class VersionCatalogUpdateExtension {
     var sortByKey: Boolean = true
     var addDependencies: Boolean = false
     var keepUnused: Boolean = false
+}
+
+fun Project.versionCatalogUpdate(block: VersionCatalogUpdateExtension.() -> Unit) {
+    extensions.configure(VersionCatalogUpdateExtension::class.java, block)
 }

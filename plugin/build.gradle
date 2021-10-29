@@ -14,7 +14,7 @@ gradlePlugin {
     plugins {
         simplePlugin {
             id = 'nl.littlerobots.version-catalog'
-            implementationClass = 'nl.littlerobots.vcu.plugin.VersionCatalogPlugin'
+            implementationClass = 'nl.littlerobots.vcu.plugin.VersionCatalogUpdatePlugin'
         }
     }
 }

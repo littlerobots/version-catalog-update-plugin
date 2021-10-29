@@ -23,7 +23,7 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.fail
 import org.junit.Test
 
-class VersionCatalogPluginTest {
+class VersionCatalogUpdatePluginTest {
     @Test
     fun `plugin requires versions plugin`() {
         val project: Project = ProjectBuilder.builder().build()

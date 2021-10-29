@@ -26,7 +26,7 @@ internal const val TASK_NAME = "versionCatalogUpdate"
 internal const val EXTENSION_NAME = "versionCatalogUpdate"
 private const val DEPENDENCY_UPDATES_TASK_NAME = "dependencyUpdates"
 
-class VersionCatalogPlugin : Plugin<Project> {
+class VersionCatalogUpdatePlugin : Plugin<Project> {
     override fun apply(project: Project) {
         if (GradleVersion.current() < GradleVersion.version("7.2")) {
             throw GradleException("Gradle 7.2 or greater is required for this plugin")
@@ -36,10 +36,10 @@ class VersionCatalogPlugin : Plugin<Project> {
         }
 
         if (project != project.rootProject) {
-            throw IllegalStateException("Should be applied to the roort project only")
+            throw IllegalStateException("Should be applied to the root project only")
         }
 
-        project.extensions.create(EXTENSION_NAME, VersionCatalogPluginExtension::class.java)
+        project.extensions.create(EXTENSION_NAME, VersionCatalogUpdateExtension::class.java)
 
         // TODO see if we can configure the output format in other ways or if this is fine
         System.setProperty("outputFormatter", "json,xml,plain")

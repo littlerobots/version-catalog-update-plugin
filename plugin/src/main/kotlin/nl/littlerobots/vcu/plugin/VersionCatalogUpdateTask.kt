@@ -57,7 +57,7 @@ abstract class VersionCatalogUpdateTask : DefaultTask() {
 
     @TaskAction
     fun updateCatalog() {
-        val extension = project.extensions.getByType(VersionCatalogPluginExtension::class.java)
+        val extension = project.extensions.getByType(VersionCatalogUpdateExtension::class.java)
 
         val addDependencies = addDependencies ?: extension.addDependencies
         val keepUnused = keepUnusedDependencies ?: extension.keepUnused
