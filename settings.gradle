@@ -4,10 +4,7 @@ pluginManagement {
         id 'org.jetbrains.kotlin.jvm' version '1.5.31'
         id "org.jetbrains.kotlin.kapt" version "1.5.31"
         id "com.diffplug.spotless" version "5.17.1"
-    }
-
-    repositories {
-
+        id "com.vanniktech.maven.publish" version "0.18.0"
     }
 
     dependencyResolutionManagement {

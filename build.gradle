@@ -1,5 +1,19 @@
 plugins {
     id "com.diffplug.spotless"
+    id "com.vanniktech.maven.publish"
 }
 
 apply from: 'gradle/spotless.gradle'
+
+subprojects {
+    group = "nl.littlerobots.vcu"
+
+    afterEvaluate {
+        tasks.named("compileKotlin") {
+            kotlinOptions {
+                jvmTarget = "1.8"
+                languageVersion = "1.3"
+            }
+        }
+    }
+}
