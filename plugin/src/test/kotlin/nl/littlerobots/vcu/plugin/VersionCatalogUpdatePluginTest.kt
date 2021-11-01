@@ -28,7 +28,7 @@ class VersionCatalogUpdatePluginTest {
     fun `plugin requires versions plugin`() {
         val project: Project = ProjectBuilder.builder().build()
         try {
-            project.pluginManager.apply("nl.littlerobots.version-catalog")
+            project.pluginManager.apply("nl.littlerobots.version-catalog-update")
             fail("Should throw")
         } catch (ex: GradleException) {
             assertEquals("com.github.ben-manes.versions needs to be added before this plugin", ex.cause?.message)
@@ -39,7 +39,7 @@ class VersionCatalogUpdatePluginTest {
     fun `adds VersionCatalogUpdateTask and sets report path`() {
         val project: Project = ProjectBuilder.builder().build()
         project.pluginManager.apply("com.github.ben-manes.versions")
-        project.pluginManager.apply("nl.littlerobots.version-catalog")
+        project.pluginManager.apply("nl.littlerobots.version-catalog-update")
         // force creation and configuration of dependent task
         project.tasks.getByName("dependencyUpdates")
 
