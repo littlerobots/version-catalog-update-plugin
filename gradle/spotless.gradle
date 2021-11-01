@@ -2,7 +2,7 @@ spotless {
     format 'misc', {
         target '**/*.md', '**/.gitignore'
         targetExclude "**/.gradle/**"
-        indentWithTabs()
+        indentWithSpaces()
         trimTrailingWhitespace()
         endWithNewline()
     }
