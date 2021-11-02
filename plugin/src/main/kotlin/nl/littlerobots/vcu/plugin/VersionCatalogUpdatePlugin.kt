@@ -25,14 +25,12 @@ import java.io.File
 internal const val TASK_NAME = "versionCatalogUpdate"
 internal const val EXTENSION_NAME = "versionCatalogUpdate"
 private const val DEPENDENCY_UPDATES_TASK_NAME = "dependencyUpdates"
+private const val VERSIONS_PLUGIN_ID = "com.github.ben-manes.versions"
 
 class VersionCatalogUpdatePlugin : Plugin<Project> {
     override fun apply(project: Project) {
         if (GradleVersion.current() < GradleVersion.version("7.2")) {
             throw GradleException("Gradle 7.2 or greater is required for this plugin")
-        }
-        if (!project.pluginManager.hasPlugin("com.github.ben-manes.versions")) {
-            throw IllegalStateException("com.github.ben-manes.versions needs to be added before this plugin")
         }
 
         if (project != project.rootProject) {
@@ -46,17 +44,25 @@ class VersionCatalogUpdatePlugin : Plugin<Project> {
 
         val reportJson = project.objects.fileProperty()
 
-        val dependencyUpdatesTask =
-            project.tasks.named(DEPENDENCY_UPDATES_TASK_NAME, DependencyUpdatesTask::class.java) {
-                reportJson.set(File(project.file(it.outputDir), "${it.reportfileName}.json"))
-            }
+        project.pluginManager.withPlugin(VERSIONS_PLUGIN_ID) {
+            val dependencyUpdatesTask =
+                project.tasks.named(DEPENDENCY_UPDATES_TASK_NAME, DependencyUpdatesTask::class.java) {
+                    reportJson.set(File(project.file(it.outputDir), "${it.reportfileName}.json"))
+                }
 
-        project.tasks.register(TASK_NAME, VersionCatalogUpdateTask::class.java) {
-            it.reportJson.set(reportJson)
-            if (!it.catalogFile.isPresent) {
-                it.catalogFile.set(project.rootProject.file("gradle/libs.versions.toml"))
+            project.tasks.register(TASK_NAME, VersionCatalogUpdateTask::class.java) {
+                it.reportJson.set(reportJson)
+                if (!it.catalogFile.isPresent) {
+                    it.catalogFile.set(project.rootProject.file("gradle/libs.versions.toml"))
+                }
+                it.dependsOn(dependencyUpdatesTask)
             }
-            it.dependsOn(dependencyUpdatesTask)
+        }
+
+        project.afterEvaluate {
+            if (!project.pluginManager.hasPlugin(VERSIONS_PLUGIN_ID)) {
+                throw IllegalStateException("com.github.ben-manes.versions needs to be applied as a plugin")
+            }
         }
     }
 }

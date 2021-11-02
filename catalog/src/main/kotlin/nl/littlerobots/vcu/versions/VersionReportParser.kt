@@ -21,20 +21,22 @@ import nl.littlerobots.vcu.model.Library
 import nl.littlerobots.vcu.model.Plugin
 import nl.littlerobots.vcu.model.VersionCatalog
 import nl.littlerobots.vcu.model.VersionDefinition
+import nl.littlerobots.vcu.toml.toTomlKey
 import nl.littlerobots.vcu.versions.model.Dependency
 import nl.littlerobots.vcu.versions.model.DependencyJsonAdapter
 import nl.littlerobots.vcu.versions.model.VersionsReport
-import nl.littlerobots.vcu.versions.model.module
 import okio.buffer
 import okio.source
 import java.io.InputStream
+
+private const val GRADLE_PLUGIN_MODULE_POST_FIX = ".gradle.plugin"
 
 class VersionReportParser {
     private val moshi = Moshi.Builder()
         .add(DependencyJsonAdapter())
         .addLast(KotlinJsonAdapterFactory()).build()
 
-    fun generateCatalog(versionsJson: InputStream, pluginModules: Collection<String>): VersionCatalog {
+    fun generateCatalog(versionsJson: InputStream): VersionCatalog {
         val adapter = moshi.adapter<VersionsReport>(VersionsReport::class.java)
         val report = versionsJson.use {
             adapter.fromJson(it.source().buffer())!!
@@ -53,9 +55,7 @@ class VersionReportParser {
             it.tomlKey
         }
 
-        val libraries = dependencies.filterNot {
-            pluginModules.contains(it.module)
-        }.associate { dependency ->
+        val libraries = dependencies.filterNot { it.name.endsWith(GRADLE_PLUGIN_MODULE_POST_FIX) }.associate { dependency ->
             val key = if (shortNames[dependency.tomlKey]!!.size == 1) {
                 dependency.tomlKey
             } else {
@@ -68,21 +68,16 @@ class VersionReportParser {
             )
         }
 
-        val plugins = dependencies.filter {
-            pluginModules.contains(it.module)
-        }.groupBy {
-            it.group
-        }.filterValues { it.size == 1 }.mapValues {
-            Plugin(it.key, VersionDefinition.Simple(it.value.first().version))
-        }.mapKeys {
-            it.key.toTomlKey()
+        val plugins = dependencies.filter { it.name.endsWith(GRADLE_PLUGIN_MODULE_POST_FIX) }.associate {
+            dependency ->
+            val pluginId = dependency.name.dropLast(GRADLE_PLUGIN_MODULE_POST_FIX.length)
+            pluginId.toTomlKey() to Plugin(id = pluginId, version = VersionDefinition.Simple(dependency.version))
         }
 
         return VersionCatalog(emptyMap(), libraries, emptyMap(), plugins)
     }
 }
 
-private fun String.toTomlKey() = replace('.', '-')
 private val Dependency.tomlKey: String
     get() {
         val lastGroupElement = group.split('.').last()

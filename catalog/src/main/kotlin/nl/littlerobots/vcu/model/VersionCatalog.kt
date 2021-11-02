@@ -15,6 +15,8 @@
 */
 package nl.littlerobots.vcu.model
 
+import nl.littlerobots.vcu.toml.toTomlKey
+
 data class VersionCatalog(
     val versions: Map<String, String>,
     val libraries: Map<String, Library>,
@@ -71,7 +73,9 @@ fun VersionCatalog.updateFrom(
 
     val plugins = this.plugins.toMutableMap().apply {
         putAll(pluginUpdates)
-        // no pruning here until we can get the plugins in a more reliable way
+        if (purge) {
+            keys.retainAll(pluginUpdates.keys)
+        }
     }
 
     val versions = this.versions.toMutableMap()
@@ -123,7 +127,7 @@ private fun VersionCatalog.retainCurrentVersionReferences(
             it.entry.version is VersionDefinition.Simple
         }.groupBy {
             (it.entry.version as VersionDefinition.Simple).version
-        }.maxBy {
+        }.maxByOrNull {
             it.value.size
         }
 
@@ -137,6 +141,45 @@ private fun VersionCatalog.retainCurrentVersionReferences(
             }
         }
     }
+}
+
+/**
+ * Updates plugins for this catalog
+ *
+ * This will move any plugins matching the module id from libraries to plugins if that plugin
+ * is not declared yet in the catalog.
+ *
+ * @param plugins a map of pluginId to its Maven module
+ * @return an updated version catalog
+ */
+fun VersionCatalog.mapPlugins(
+    plugins: Map<String, String>
+): VersionCatalog {
+    if (plugins.isEmpty()) {
+        return this
+    }
+
+    // libraries that are actually plugins
+    val libraryByModule = libraries.filter {
+        plugins.containsValue(it.value.module)
+    }.map {
+        it.value.module to it.value
+    }.toMap()
+
+    // already known plugin ids which we won't touch
+    val pluginIds = this.plugins.values.map { it.id }
+
+    val addedPlugins = plugins.toMutableMap().apply { keys.removeAll(pluginIds) }
+    val newPlugins = this.plugins + addedPlugins.mapNotNull { entry ->
+        libraryByModule[entry.value]?.version?.let {
+            entry.key.toTomlKey() to Plugin(entry.key, it)
+        }
+    }
+
+    return copy(
+        libraries = this.libraries.filterNot { plugins.containsValue(it.value.module) },
+        plugins = newPlugins
+    )
 }
 
 private fun VersionCatalog.collectVersionReferenceForGroups(

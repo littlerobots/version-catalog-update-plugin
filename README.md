@@ -75,5 +75,4 @@ In addition, you can override configured values using command line arguments. Us
 For snapshots versions add the Sonatype snapshot repository `https://oss.sonatype.org/content/repositories/snapshots/`.
 
 ## Known issues and limitations
-* Adding and updating plugin versions is currently not very reliable as there doesn't seem a good way to map plugin ids to Maven module ids as reported by the versions plugin
 * When adding dependencies, "internal" dependencies or plugins might be added to the catalog. It is recommended to leave the default set to `false` for that reason. Usually after the initial version catalog has been setup, new dependencies should be added to the toml file manually anyway.

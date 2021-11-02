@@ -358,6 +358,33 @@ class VersionCatalogTest {
     }
 
     @Test
+    fun `removes unused plugin ids`() {
+        val catalog = VersionCatalogParser().parse(
+            """
+            [plugins]
+            myplugin = "some.plugin.id:1.4"
+            myplugin2 = "another.plugin.id:1.4"
+            """.trimIndent().byteInputStream()
+        )
+
+        val update = VersionCatalog(
+            emptyMap(),
+            emptyMap(),
+            emptyMap(),
+            mapOf("plugin" to Plugin(id = "some.plugin.id", version = VersionDefinition.Simple("1.5")))
+        )
+
+        val result = catalog.updateFrom(update)
+
+        assertEquals(1, result.plugins.size)
+        assertNull(result.plugins["myplugin2"])
+        assertEquals(
+            Plugin(id = "some.plugin.id", version = VersionDefinition.Simple("1.5")),
+            result.plugins["myplugin"]
+        )
+    }
+
+    @Test
     fun `removes unused version references`() {
         val catalog = VersionCatalogParser().parse(
             """
@@ -445,6 +472,62 @@ class VersionCatalogTest {
         assertEquals(
             Library(module = "nl.littlerobots.test:example", version = VersionDefinition.Unspecified),
             result.libraries["mylib"]
+        )
+    }
+
+    @Test
+    fun `moves libraries to plugins`() {
+        val catalog = VersionCatalogParser().parse(
+            """
+            [libraries]
+            mylib = "nl.littlerobots.test:example:1.0.0"
+            """.trimIndent().byteInputStream()
+        )
+
+        val result = catalog.mapPlugins(
+            mapOf(
+                "some.plugin.id" to "nl.littlerobots.test:example",
+                "another.plugin.id" to "nl.littlerobots.test:example"
+            )
+        )
+
+        assertEquals(2, result.plugins.size)
+        assertEquals(0, result.libraries.size)
+        assertEquals(
+            Plugin(id = "some.plugin.id", version = VersionDefinition.Simple("1.0.0")),
+            result.plugins["some-plugin-id"]
+        )
+        assertEquals(
+            Plugin(id = "another.plugin.id", version = VersionDefinition.Simple("1.0.0")),
+            result.plugins["another-plugin-id"]
+        )
+    }
+
+    @Test
+    fun `updatePlugins ignores existing plugins for updates`() {
+        val catalog = VersionCatalogParser().parse(
+            """
+            [libraries]
+            mylib = "nl.littlerobots.test:example:1.0.0"
+
+            [plugins]
+            test = "some.plugin.id:2.0.0"
+            """.trimIndent().byteInputStream()
+        )
+
+        val result = catalog.mapPlugins(
+            mapOf(
+                "some.plugin.id" to "nl.littlerobots.test:example",
+                "another.plugin.id" to "nl.littlerobots.test:example"
+            )
+        )
+
+        assertEquals(2, result.plugins.size)
+        assertEquals(0, result.libraries.size)
+        assertEquals(Plugin(id = "some.plugin.id", version = VersionDefinition.Simple("2.0.0")), result.plugins["test"])
+        assertEquals(
+            Plugin(id = "another.plugin.id", version = VersionDefinition.Simple("1.0.0")),
+            result.plugins["another-plugin-id"]
         )
     }
 }

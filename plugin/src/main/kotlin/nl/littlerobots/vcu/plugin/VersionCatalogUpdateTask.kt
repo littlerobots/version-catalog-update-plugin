@@ -18,18 +18,23 @@ package nl.littlerobots.vcu.plugin
 import nl.littlerobots.vcu.VersionCatalogParser
 import nl.littlerobots.vcu.VersionCatalogWriter
 import nl.littlerobots.vcu.model.VersionCatalog
+import nl.littlerobots.vcu.model.mapPlugins
 import nl.littlerobots.vcu.model.sortKeys
 import nl.littlerobots.vcu.model.updateFrom
 import nl.littlerobots.vcu.versions.VersionReportParser
 import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
-import org.gradle.api.artifacts.ExternalDependency
+import org.gradle.api.artifacts.Configuration
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.TaskAction
 import org.gradle.api.tasks.options.Option
+import org.gradle.internal.component.external.model.ModuleComponentArtifactIdentifier
 import java.io.File
+import java.util.jar.JarFile
+
+private const val PROPERTIES_SUFFIX = ".properties"
 
 abstract class VersionCatalogUpdateTask : DefaultTask() {
     @get:Internal // not input because it still needs to run since the target toml file could have changed
@@ -63,11 +68,9 @@ abstract class VersionCatalogUpdateTask : DefaultTask() {
         val keepUnused = keepUnusedDependencies ?: extension.keepUnused
 
         val reportParser = VersionReportParser()
-        val pluginModules = project.buildscript.configurations.flatMap { configuration ->
-            configuration.dependencies.filterIsInstance<ExternalDependency>().map { "${it.group}:${it.name}" }.toList()
-        }
 
-        val catalogFromDependencies = reportParser.generateCatalog(reportJson.get().asFile.inputStream(), pluginModules)
+        val catalogFromDependencies = reportParser.generateCatalog(reportJson.get().asFile.inputStream())
+
         val currentCatalog = if (catalogFile.get().exists()) {
             if (createCatalog) {
                 throw GradleException("${catalogFile.get()} already exists and cannot be created from scratch.")
@@ -83,7 +86,10 @@ abstract class VersionCatalogUpdateTask : DefaultTask() {
         }
 
         val updatedCatalog = currentCatalog.updateFrom(
-            catalogFromDependencies,
+            // TODO not sure if we can have multiple configurations for the buildscript or if it can even be no config
+            project.buildscript.configurations.firstOrNull()?.let {
+                resolvePluginIds(it, catalogFromDependencies)
+            } ?: catalogFromDependencies,
             addNew = addDependencies || createCatalog,
             purge = !keepUnused
         ).let {
@@ -93,7 +99,51 @@ abstract class VersionCatalogUpdateTask : DefaultTask() {
                 it
             }
         }
+
         val writer = VersionCatalogWriter()
         writer.write(updatedCatalog, catalogFile.get().writer())
+    }
+
+    private fun resolvePluginIds(configuration: Configuration, versionCatalog: VersionCatalog): VersionCatalog {
+        val moduleIds = versionCatalog.libraries.values.map { it.module }
+        val knownPluginModules = versionCatalog.plugins.values.map { "${it.id}.gradle.plugins" }
+
+        val plugins = configuration.resolvedConfiguration.resolvedArtifacts.mapNotNull { resolvedArtifact ->
+            val module = (resolvedArtifact.id as? ModuleComponentArtifactIdentifier)?.let {
+                "${it.componentIdentifier.moduleIdentifier.group}:${it.componentIdentifier.moduleIdentifier.name}"
+            }
+
+            if (module != null && moduleIds.contains(module) && ! knownPluginModules.contains(module)) {
+                checkGradlePluginDescriptor(resolvedArtifact.file).map {
+                    it to module
+                }
+            } else {
+                null
+            }
+        }.flatten().toMap()
+
+        return versionCatalog.mapPlugins(plugins)
+    }
+
+    private fun checkGradlePluginDescriptor(file: File): Set<String> {
+        val jarFile = try {
+            JarFile(file)
+        } catch (ex: Exception) {
+            project.logger.debug("Could not check ${file.absolutePath} for Gradle plugin descriptors")
+            null
+        } ?: return emptySet()
+
+        val ids = mutableSetOf<String>()
+        jarFile.use {
+            for (entry in it.entries()) {
+                if (entry.name.startsWith("META-INF/gradle-plugins") &&
+                    !entry.isDirectory &&
+                    entry.name.endsWith(PROPERTIES_SUFFIX)
+                ) {
+                    ids.add(File(entry.name).name.dropLast(PROPERTIES_SUFFIX.length))
+                }
+            }
+        }
+        return ids
     }
 }

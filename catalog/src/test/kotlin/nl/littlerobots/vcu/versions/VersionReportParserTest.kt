@@ -42,7 +42,7 @@ class VersionReportParserTest {
         """.trimIndent()
         val updater = VersionReportParser()
 
-        val catalog = updater.generateCatalog(report.byteInputStream(), emptyList())
+        val catalog = updater.generateCatalog(report.byteInputStream())
 
         assertEquals(1, catalog.libraries.size)
         assertEquals(
@@ -79,7 +79,7 @@ class VersionReportParserTest {
         """.trimIndent()
         val updater = VersionReportParser()
 
-        val catalog = updater.generateCatalog(report.byteInputStream(), emptyList())
+        val catalog = updater.generateCatalog(report.byteInputStream())
 
         assertEquals(1, catalog.libraries.size)
         assertEquals(
@@ -99,18 +99,18 @@ class VersionReportParserTest {
                 "current": {
                     "dependencies": [
                         {
-                            "group": "com.some.plugin",
-                            "userReason": null,
-                            "version": "1.1.0",
-                            "projectUrl": "https://developer.android.com/topic/libraries/architecture/index.html",
-                            "name": "the-plugin"
-                        } ]
+                "group": "com.github.ben-manes.versions",
+                "userReason": null,
+                "version": "0.39.0",
+                "projectUrl": null,
+                "name": "com.github.ben-manes.versions.gradle.plugin"
+            } ]
                  }
             }
         """.trimIndent()
         val updater = VersionReportParser()
 
-        val catalog = updater.generateCatalog(report.byteInputStream(), listOf("com.some.plugin:the-plugin"))
+        val catalog = updater.generateCatalog(report.byteInputStream())
 
         val writer = VersionCatalogWriter()
         val output = StringWriter()
@@ -119,10 +119,10 @@ class VersionReportParserTest {
         assertEquals(1, catalog.plugins.size)
         assertEquals(
             Plugin(
-                id = "com.some.plugin",
-                version = VersionDefinition.Simple("1.1.0")
+                id = "com.github.ben-manes.versions",
+                version = VersionDefinition.Simple("0.39.0")
             ),
-            catalog.plugins["com-some-plugin"]
+            catalog.plugins["com-github-ben-manes-versions"]
         )
     }
 }
