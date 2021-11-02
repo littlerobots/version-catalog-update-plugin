@@ -27,7 +27,8 @@ class DependencyJsonAdapter() {
     }
 
     @ToJson
-    fun toJson(dependency: Dependency): Map<String, Any?> {
+    @Suppress("UNUSED_PARAMETER")
+    fun toJson(unused: Dependency): Map<String, Any?> {
         throw NotImplementedError()
     }
 }

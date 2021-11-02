@@ -12,8 +12,13 @@ subprojects {
         tasks.named("compileKotlin") {
             kotlinOptions {
                 jvmTarget = "1.8"
-                languageVersion = "1.3"
+                languageVersion = "1.4"
             }
+        }
+
+        java {
+            sourceCompatibility = JavaVersion.VERSION_1_8
+            targetCompatibility = JavaVersion.VERSION_1_8
         }
     }
 }
