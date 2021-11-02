@@ -27,7 +27,10 @@ import org.gradle.api.GradleException
 import org.gradle.api.artifacts.Configuration
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.Property
+import org.gradle.api.tasks.InputFile
 import org.gradle.api.tasks.Internal
+import org.gradle.api.tasks.Optional
+import org.gradle.api.tasks.OutputFile
 import org.gradle.api.tasks.TaskAction
 import org.gradle.api.tasks.options.Option
 import org.gradle.internal.component.external.model.ModuleComponentArtifactIdentifier
@@ -37,10 +40,11 @@ import java.util.jar.JarFile
 private const val PROPERTIES_SUFFIX = ".properties"
 
 abstract class VersionCatalogUpdateTask : DefaultTask() {
-    @get:Internal // not input because it still needs to run since the target toml file could have changed
+    @get:InputFile
     abstract val reportJson: RegularFileProperty
 
-    @get:Internal // not output because the file can be changed manually too
+    @get:OutputFile
+    @get:Optional
     abstract val catalogFile: Property<File>
 
     @set:Option(option = "create", description = "Create libs.versions.toml based on current dependencies")
