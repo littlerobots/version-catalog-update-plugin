@@ -65,7 +65,7 @@ The plugin can be configured using the `versionCatalogUpdate` block in the build
 
 ```
 versionCatalogUpdate {
-  sortyByKey = true
+  sortByKey = true
   addDependencies = false
   keepUnused = false
 }
