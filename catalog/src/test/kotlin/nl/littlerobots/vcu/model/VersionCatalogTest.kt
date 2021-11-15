@@ -530,4 +530,32 @@ class VersionCatalogTest {
             result.plugins["another-plugin-id"]
         )
     }
+
+    @Test
+    fun `Retains unused version references`() {
+        val catalog = VersionCatalog(
+            versions = mapOf("unused" to "1.0.0"),
+            libraries = emptyMap(),
+            bundles = emptyMap(),
+            plugins = emptyMap()
+        )
+
+        val result = catalog.updateFrom(catalog, purge = false)
+
+        assertEquals(catalog.versions, result.versions)
+    }
+
+    @Test
+    fun `Removes unused version references`() {
+        val catalog = VersionCatalog(
+            versions = mapOf("unused" to "1.0.0"),
+            libraries = emptyMap(),
+            bundles = emptyMap(),
+            plugins = emptyMap()
+        )
+
+        val result = catalog.updateFrom(catalog, purge = true)
+
+        assertEquals(emptyMap<String, String>(), result.versions)
+    }
 }

@@ -88,12 +88,13 @@ fun VersionCatalog.updateFrom(
     // collect all version refs that point to a single group with all the libs using the same version
     collectVersionReferenceForGroups(libraries, versions)
 
-    return this.copy(
+    val result = this.copy(
         versions = versions,
         libraries = libraries,
         plugins = plugins
     ).updateBundles()
-        .pruneVersions()
+
+    return if (purge) result.pruneVersions() else result
 }
 
 private fun VersionCatalog.retainCurrentVersionReferences(

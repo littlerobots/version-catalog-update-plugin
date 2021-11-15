@@ -2,7 +2,7 @@
 
 Version 0.2.0-SNAPSHOT
 -------------
-* TBD
+* `keepUnused = true` keeps unused version declarations too now
 
 Version 0.1.0
 -------------
