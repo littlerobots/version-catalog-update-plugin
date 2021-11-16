@@ -167,7 +167,7 @@ fun VersionCatalog.mapPlugins(
         it.value.module to it.value
     }.toMap()
 
-    // already known plugin ids which we won't touch
+    // already known plugin ids which we won't touch, assuming those are discovered by other means
     val pluginIds = this.plugins.values.map { it.id }
 
     val addedPlugins = plugins.toMutableMap().apply { keys.removeAll(pluginIds) }
@@ -177,10 +177,7 @@ fun VersionCatalog.mapPlugins(
         }
     }
 
-    return copy(
-        libraries = this.libraries.filterNot { plugins.containsValue(it.value.module) },
-        plugins = newPlugins
-    )
+    return copy(plugins = newPlugins)
 }
 
 private fun VersionCatalog.collectVersionReferenceForGroups(

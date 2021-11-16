@@ -476,7 +476,7 @@ class VersionCatalogTest {
     }
 
     @Test
-    fun `moves libraries to plugins`() {
+    fun `adds plugins from module plugin mapping`() {
         val catalog = VersionCatalogParser().parse(
             """
             [libraries]
@@ -492,7 +492,7 @@ class VersionCatalogTest {
         )
 
         assertEquals(2, result.plugins.size)
-        assertEquals(0, result.libraries.size)
+        assertEquals(1, result.libraries.size)
         assertEquals(
             Plugin(id = "some.plugin.id", version = VersionDefinition.Simple("1.0.0")),
             result.plugins["some-plugin-id"]
@@ -523,7 +523,7 @@ class VersionCatalogTest {
         )
 
         assertEquals(2, result.plugins.size)
-        assertEquals(0, result.libraries.size)
+        assertEquals(1, result.libraries.size)
         assertEquals(Plugin(id = "some.plugin.id", version = VersionDefinition.Simple("2.0.0")), result.plugins["test"])
         assertEquals(
             Plugin(id = "another.plugin.id", version = VersionDefinition.Simple("1.0.0")),
