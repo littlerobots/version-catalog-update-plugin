@@ -1,6 +1,6 @@
 # Changelog
 
-Version 0.2.0-SNAPSHOT
+Version 0.2.0
 -------------
 * `keepUnused = true` keeps unused version declarations too now
 * Plugins are no longer moved from the libraries section so that a library declaration for a plugin can still be updated.
