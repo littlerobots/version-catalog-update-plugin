@@ -21,8 +21,7 @@ pluginManagement {
 }
 ```
 
-The version catalog update plugin then needs to be applied after the versions plugin.
-
+In your `build.gradle[.kts]`:
 ```
 plugins {
   id "com.github.ben-manes.versions" version "0.39.0"
