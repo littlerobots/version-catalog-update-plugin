@@ -70,7 +70,7 @@ versionCatalogUpdate {
 }
 ```
 
-In addition, you can override configured values using command line arguments. Use `./gradlew versionCatalogUpdate --add` to add dependencies or `./gradlew --keepUnused` (or both).
+In addition, you can override configured values using command line arguments. Use `./gradlew versionCatalogUpdate --add` to add dependencies or `./gradlew versionCatalogUpdate --keepUnused` (or both).
 
 ## Snapshot versions
 For snapshots versions add the Sonatype snapshot repository `https://oss.sonatype.org/content/repositories/snapshots/`.
