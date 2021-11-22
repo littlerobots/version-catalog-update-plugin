@@ -93,6 +93,43 @@ class VersionReportParserTest {
     }
 
     @Test
+    fun `converts exceeded dependency to library`() {
+        val report = """
+            {
+              "exceeded": {
+                "dependencies": [
+                  {
+                    "group": "androidx.datastore",
+                    "latest": "1.0.0",
+                    "userReason": null,
+                    "version": "1.1.0-SNAPSHOT",
+                    "projectUrl": "https://developer.android.com/jetpack/androidx/releases/datastore#1.0.0",
+                    "name": "datastore"
+                  }
+                ],
+                "count": 1
+              }
+            }
+        """.trimIndent()
+
+        val updater = VersionReportParser()
+
+        val catalog = updater.generateCatalog(report.byteInputStream())
+
+        assertEquals(1, catalog.libraries.size)
+        // for exceeded the "latest" version is the preferred value in the toml file, even if the dependency is
+        // updated by transitive dependencies
+        assertEquals(
+            Library(
+                group = "androidx.datastore",
+                name = "datastore",
+                version = VersionDefinition.Simple("1.0.0")
+            ),
+            catalog.libraries["androidx-datastore"]
+        )
+    }
+
+    @Test
     fun `reports plugin updates`() {
         val report = """
             {
