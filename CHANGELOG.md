@@ -1,6 +1,6 @@
 # Changelog
 
-Version 0.2.1-SNAPSHOT
+Version 0.2.1
 --------------
 * Use the preferred version for `exceeded` dependencies in the toml file. [(#7)](https://github.com/littlerobots/version-catalog-update-plugin/issues/7)
 
