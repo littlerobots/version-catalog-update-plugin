@@ -44,24 +44,29 @@ class VersionCatalogUpdatePlugin : Plugin<Project> {
 
         val reportJson = project.objects.fileProperty()
 
-        project.pluginManager.withPlugin(VERSIONS_PLUGIN_ID) {
-            val dependencyUpdatesTask =
-                project.tasks.named(DEPENDENCY_UPDATES_TASK_NAME, DependencyUpdatesTask::class.java) {
-                    reportJson.set(File(project.file(it.outputDir), "${it.reportfileName}.json"))
-                }
+        val catalogUpdatesTask = project.tasks.register(TASK_NAME, VersionCatalogUpdateTask::class.java) {
+            it.reportJson.set(reportJson)
+            if (!it.catalogFile.isPresent) {
+                it.catalogFile.set(project.rootProject.file("gradle/libs.versions.toml"))
+            }
+        }
 
-            project.tasks.register(TASK_NAME, VersionCatalogUpdateTask::class.java) {
-                it.reportJson.set(reportJson)
-                if (!it.catalogFile.isPresent) {
-                    it.catalogFile.set(project.rootProject.file("gradle/libs.versions.toml"))
-                }
+        project.pluginManager.withPlugin(VERSIONS_PLUGIN_ID) {
+            val dependencyUpdatesTask = project.tasks.named(DEPENDENCY_UPDATES_TASK_NAME, DependencyUpdatesTask::class.java) {
+                reportJson.set(File(project.file(it.outputDir), "${it.reportfileName}.json"))
+            }
+            catalogUpdatesTask.configure {
                 it.dependsOn(dependencyUpdatesTask)
             }
         }
 
         project.afterEvaluate {
-            if (!project.pluginManager.hasPlugin(VERSIONS_PLUGIN_ID)) {
-                throw IllegalStateException("com.github.ben-manes.versions needs to be applied as a plugin")
+            catalogUpdatesTask.configure {
+                if (!it.reportJson.isPresent) {
+                    if (!project.pluginManager.hasPlugin(VERSIONS_PLUGIN_ID)) {
+                        throw IllegalStateException("com.github.ben-manes.versions needs to be applied as a plugin")
+                    }
+                }
             }
         }
     }
