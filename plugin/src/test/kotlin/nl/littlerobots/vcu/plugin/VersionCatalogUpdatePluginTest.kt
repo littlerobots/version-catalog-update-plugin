@@ -16,17 +16,69 @@
 package nl.littlerobots.vcu.plugin
 
 import org.gradle.api.Project
-import org.gradle.api.UnknownTaskException
 import org.gradle.testfixtures.ProjectBuilder
+import org.gradle.testkit.runner.GradleRunner
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertTrue
+import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.TemporaryFolder
+import java.io.File
 
 class VersionCatalogUpdatePluginTest {
-    @Test(expected = UnknownTaskException::class)
+    @get:Rule
+    val tempDir = TemporaryFolder()
+    lateinit var buildFile: File
+
+    @Before
+    fun setup() {
+        buildFile = tempDir.newFile("build.gradle")
+    }
+
+    @Test
     fun `plugin requires versions plugin`() {
-        val project: Project = ProjectBuilder.builder().build()
-        project.pluginManager.apply("nl.littlerobots.version-catalog-update")
-        project.tasks.getByName(TASK_NAME)
+        buildFile.writeText(
+            """
+            plugins {
+                id "nl.littlerobots.version-catalog-update"
+            }
+            """.trimIndent()
+        )
+
+        val runner = GradleRunner.create()
+            .withProjectDir(tempDir.root)
+            .withArguments("versionCatalogUpdate")
+            .withPluginClasspath()
+            .buildAndFail()
+
+        assertTrue(runner.output.contains("com.github.ben-manes.versions needs to be applied as a plugin"))
+    }
+
+    @Test
+    fun `plugin with report path does not require versions plugin`() {
+        val reportJson = tempDir.newFile()
+
+        buildFile.writeText(
+            """
+            plugins {
+                id "nl.littlerobots.version-catalog-update"
+            }
+
+            tasks.named("versionCatalogUpdate").configure {
+                it.reportJson = file("${reportJson.name}")
+            }
+            """.trimIndent()
+        )
+
+        // empty report
+        reportJson.writeText("{}")
+
+        GradleRunner.create()
+            .withProjectDir(tempDir.root)
+            .withArguments("versionCatalogUpdate", "--create")
+            .withPluginClasspath()
+            .build()
     }
 
     @Test
