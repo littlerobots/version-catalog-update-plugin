@@ -24,7 +24,8 @@ import nl.littlerobots.vcu.model.updateFrom
 import nl.littlerobots.vcu.versions.VersionReportParser
 import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
-import org.gradle.api.artifacts.Configuration
+import org.gradle.api.Project
+import org.gradle.api.artifacts.ResolvedArtifact
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.InputFile
@@ -90,10 +91,7 @@ abstract class VersionCatalogUpdateTask : DefaultTask() {
         }
 
         val updatedCatalog = currentCatalog.updateFrom(
-            // TODO not sure if we can have multiple configurations for the buildscript or if it can even be no config
-            project.buildscript.configurations.firstOrNull()?.let {
-                resolvePluginIds(it, catalogFromDependencies)
-            } ?: catalogFromDependencies,
+            resolvePluginIds(getResolvedBuildScriptArtifacts(project), catalogFromDependencies),
             addNew = addDependencies || createCatalog,
             purge = !keepUnused
         ).let {
@@ -108,16 +106,36 @@ abstract class VersionCatalogUpdateTask : DefaultTask() {
         writer.write(updatedCatalog, catalogFile.get().writer())
     }
 
-    private fun resolvePluginIds(configuration: Configuration, versionCatalog: VersionCatalog): VersionCatalog {
+    /**
+     * Get the resolved build script dependencies for the given project and any subprojects
+     *
+     * @param project project to get the dependencies for
+     * @return a set of [ResolvedArtifact], may be empty
+     */
+    private fun getResolvedBuildScriptArtifacts(project: Project): Set<ResolvedArtifact> {
+        val projectResolvedArtifacts = project.buildscript.configurations.firstOrNull()?.resolvedConfiguration?.resolvedArtifacts?.filterNotNull()
+            ?.toSet()
+            ?: (emptySet())
+        return if (project.subprojects.isNotEmpty()) {
+            project.subprojects.map { getResolvedBuildScriptArtifacts(it) }.flatten().toSet() + projectResolvedArtifacts
+        } else {
+            projectResolvedArtifacts
+        }
+    }
+
+    private fun resolvePluginIds(
+        buildScriptArtifacts: Set<ResolvedArtifact>,
+        versionCatalog: VersionCatalog
+    ): VersionCatalog {
         val moduleIds = versionCatalog.libraries.values.map { it.module }
         val knownPluginModules = versionCatalog.plugins.values.map { "${it.id}.gradle.plugins" }
 
-        val plugins = configuration.resolvedConfiguration.resolvedArtifacts.mapNotNull { resolvedArtifact ->
+        val plugins = buildScriptArtifacts.mapNotNull { resolvedArtifact ->
             val module = (resolvedArtifact.id as? ModuleComponentArtifactIdentifier)?.let {
                 "${it.componentIdentifier.moduleIdentifier.group}:${it.componentIdentifier.moduleIdentifier.name}"
             }
 
-            if (module != null && moduleIds.contains(module) && ! knownPluginModules.contains(module)) {
+            if (module != null && moduleIds.contains(module) && !knownPluginModules.contains(module)) {
                 checkGradlePluginDescriptor(resolvedArtifact.file).map {
                     it to module
                 }

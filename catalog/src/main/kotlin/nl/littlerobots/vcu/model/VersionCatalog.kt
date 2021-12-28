@@ -147,7 +147,7 @@ private fun VersionCatalog.retainCurrentVersionReferences(
 /**
  * Updates plugins for this catalog
  *
- * This will move any plugins matching the module id from libraries to plugins if that plugin
+ * This will add any plugins matching the module id in the libraries section to plugins if that plugin
  * is not declared yet in the catalog.
  *
  * @param plugins a map of pluginId to its Maven module
@@ -168,7 +168,7 @@ fun VersionCatalog.mapPlugins(
     }.toMap()
 
     // already known plugin ids which we won't touch, assuming those are discovered by other means
-    val pluginIds = this.plugins.values.map { it.id }
+    val pluginIds = this.plugins.values.map { it.id }.toSet()
 
     val addedPlugins = plugins.toMutableMap().apply { keys.removeAll(pluginIds) }
     val newPlugins = this.plugins + addedPlugins.mapNotNull { entry ->

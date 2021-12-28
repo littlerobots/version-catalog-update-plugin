@@ -1,5 +1,9 @@
 # Changelog
 
+Version 0.2.2-SNAPSHOT
+-------------
+* Fixes an issue where plugin dependencies were incorrectly classified as libraries when using a `resolutionStrategy` mapping plugin ids. [(#11)](https://github.com/littlerobots/version-catalog-update-plugin/issues/11)
+
 Version 0.2.1
 --------------
 * Use the preferred version for `exceeded` dependencies in the toml file. [(#7)](https://github.com/littlerobots/version-catalog-update-plugin/issues/7)
