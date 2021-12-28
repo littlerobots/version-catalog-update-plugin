@@ -18,6 +18,7 @@ package nl.littlerobots.vcu.plugin
 import org.gradle.api.Project
 import org.gradle.testfixtures.ProjectBuilder
 import org.gradle.testkit.runner.GradleRunner
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -53,6 +54,146 @@ class VersionCatalogUpdatePluginTest {
             .buildAndFail()
 
         assertTrue(runner.output.contains("com.github.ben-manes.versions needs to be applied as a plugin"))
+    }
+
+    @Test
+    fun `plugins with plugin block syntax in subprojects are detected`() {
+        val reportJson = tempDir.newFile()
+
+        buildFile.writeText(
+            """
+            plugins {
+                id "nl.littlerobots.version-catalog-update"
+            }
+
+            tasks.named("versionCatalogUpdate").configure {
+                it.reportJson = file("${reportJson.name}")
+            }
+            """.trimIndent()
+        )
+        val moduleDir = File(tempDir.root, "module1")
+        moduleDir.mkdir()
+        val moduleBuildFile = File(moduleDir, "build.gradle")
+        moduleBuildFile.writeText(
+            """
+            plugins {
+                id "com.github.ben-manes.versions" version "0.39.0"
+            }
+            """.trimIndent()
+        )
+        val settingsFile = File(tempDir.root, "settings.gradle")
+        settingsFile.writeText(
+            """
+            include(":module1")
+            """.trimIndent()
+        )
+
+        // this is the plugin marker artifact that allows Gradle to resolve a plugin id
+        reportJson.writeText(
+            """
+            {
+              "current": {
+                "dependencies": [
+                  {
+                    "group": "com.github.ben-manes.versions",
+                    "version": "0.39.0",
+                    "name": "com.github.ben-manes.versions.gradle.plugin"
+                  }
+                ]
+              }
+            }
+            """.trimIndent()
+        )
+
+        GradleRunner.create()
+            .withProjectDir(tempDir.root)
+            .withArguments("versionCatalogUpdate", "--create")
+            .withPluginClasspath()
+            .build()
+
+        val libs = File(tempDir.root, "gradle/libs.versions.toml").readText()
+
+        assertEquals(
+            """
+            [plugins]
+            com-github-ben-manes-versions = "com.github.ben-manes.versions:0.39.0"
+
+            """.trimIndent(),
+            libs
+        )
+    }
+
+    @Test
+    fun `plugins with plugin block syntax mapped through a resolutionStrategy subprojects are detected`() {
+        val reportJson = tempDir.newFile()
+
+        buildFile.writeText(
+            """
+            plugins {
+                id "nl.littlerobots.version-catalog-update"
+            }
+
+            tasks.named("versionCatalogUpdate").configure {
+                it.reportJson = file("${reportJson.name}")
+            }
+            """.trimIndent()
+        )
+        val moduleDir = File(tempDir.root, "module1")
+        moduleDir.mkdir()
+        val moduleBuildFile = File(moduleDir, "build.gradle")
+        moduleBuildFile.writeText(
+            """
+            plugins {
+                id "com.github.ben-manes.versions" version "0.39.0"
+            }
+            """.trimIndent()
+        )
+        val settingsFile = File(tempDir.root, "settings.gradle")
+        settingsFile.writeText(
+            """
+            include(":module1")
+            """.trimIndent()
+        )
+
+        // this artifact would normally not be reported, unless it's mapped in settings.gradle,
+        // so this fakes the plugin being resolved through an resolutionStrategy
+        reportJson.writeText(
+            """
+            {
+              "current": {
+                "dependencies": [
+                  {
+                    "group": "com.github.ben-manes",
+                    "version": "0.39.0",
+                    "name": "gradle-versions-plugin"
+                  }
+                ]
+              }
+            }
+            """.trimIndent()
+        )
+
+        GradleRunner.create()
+            .withProjectDir(tempDir.root)
+            .withArguments("versionCatalogUpdate", "--create")
+            .withPluginClasspath()
+            .withDebug(true)
+            .build()
+
+        val libs = File(tempDir.root, "gradle/libs.versions.toml").readText()
+        // "create" will add both a library and a plugin because all plugin dependencies are considered in one go
+        // and this could therefore be a normal "apply" in a subproject or a plugin declaration
+        assertEquals(
+            """
+            [libraries]
+            com-github-ben-manes-gradle-versions-plugin = "com.github.ben-manes:gradle-versions-plugin:0.39.0"
+
+            [plugins]
+            com-github-ben-manes-versions = "com.github.ben-manes.versions:0.39.0"
+
+            """.trimIndent(),
+            libs
+        )
     }
 
     @Test
