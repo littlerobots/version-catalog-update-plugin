@@ -37,7 +37,7 @@ class VersionReportParser {
         .addLast(KotlinJsonAdapterFactory()).build()
 
     fun generateCatalog(versionsJson: InputStream): VersionCatalog {
-        val adapter = moshi.adapter<VersionsReport>(VersionsReport::class.java)
+        val adapter = moshi.adapter(VersionsReport::class.java)
         val report = versionsJson.use {
             adapter.fromJson(it.source().buffer())!!
         }
