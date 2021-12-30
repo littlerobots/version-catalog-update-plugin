@@ -22,8 +22,14 @@ import com.squareup.moshi.ToJson
 class DependencyJsonAdapter() {
     @FromJson
     fun fromJson(dependencyJson: DependencyJson): Dependency {
-        val version = dependencyJson.latest ?: dependencyJson.available?.values?.filterNotNull()?.first() ?: dependencyJson.version
-        return Dependency(dependencyJson.group, dependencyJson.name, version)
+        return if (dependencyJson.latest != null) {
+            ExceededDependency(dependencyJson.group, dependencyJson.name, dependencyJson.version, dependencyJson.projectUrl, dependencyJson.latest)
+        } else if (dependencyJson.available != null) {
+            OutdatedDependency(dependencyJson.group, dependencyJson.name, dependencyJson.version, dependencyJson.projectUrl, dependencyJson.available)
+        } else {
+            // not always "current" but good enough for our purposes
+            CurrentDependency(dependencyJson.group, dependencyJson.name, dependencyJson.version, dependencyJson.projectUrl)
+        }
     }
 
     @ToJson
@@ -39,5 +45,6 @@ data class DependencyJson(
     val name: String,
     val version: String,
     val latest: String?,
+    val projectUrl: String?,
     val available: Map<String, String?>? = null
 )

@@ -64,14 +64,14 @@ class VersionReportParser {
             key to Library(
                 group = dependency.group,
                 name = dependency.name,
-                version = VersionDefinition.Simple(dependency.version)
+                version = VersionDefinition.Simple(dependency.latestVersion)
             )
         }
 
         val plugins = dependencies.filter { it.name.endsWith(GRADLE_PLUGIN_MODULE_POST_FIX) }.associate {
             dependency ->
             val pluginId = dependency.name.dropLast(GRADLE_PLUGIN_MODULE_POST_FIX.length)
-            pluginId.toTomlKey() to Plugin(id = pluginId, version = VersionDefinition.Simple(dependency.version))
+            pluginId.toTomlKey() to Plugin(id = pluginId, version = VersionDefinition.Simple(dependency.latestVersion))
         }
 
         return VersionCatalog(emptyMap(), libraries, emptyMap(), plugins)

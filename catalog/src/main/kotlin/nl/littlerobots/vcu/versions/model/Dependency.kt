@@ -15,7 +15,46 @@
 */
 package nl.littlerobots.vcu.versions.model
 
-class Dependency(val group: String, val name: String, val version: String)
+sealed class Dependency(
+    val group: String,
+    val name: String,
+    val projectUrl: String?
+) {
+    abstract val currentVersion: String
+    abstract val latestVersion: String
+}
+
+class CurrentDependency(
+    group: String,
+    name: String,
+    version: String,
+    projectUrl: String?,
+) : Dependency(group, name, projectUrl) {
+    override val currentVersion: String = version
+    override val latestVersion: String = version
+}
+
+class ExceededDependency(
+    group: String,
+    name: String,
+    version: String,
+    projectUrl: String?,
+    latest: String
+) : Dependency(group, name, projectUrl) {
+    override val currentVersion: String = version
+    override val latestVersion: String = latest
+}
+
+class OutdatedDependency(
+    group: String,
+    name: String,
+    version: String,
+    projectUrl: String?,
+    available: Map<String, String?>
+) : Dependency(group, name, projectUrl) {
+    override val currentVersion: String = version
+    override val latestVersion: String = available.values.filterNotNull().first()
+}
 
 val Dependency.module: String
     get() = "$group:$name"
