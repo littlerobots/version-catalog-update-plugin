@@ -1,6 +1,6 @@
 # Changelog
 
-Version 0.2.2-SNAPSHOT
+Version 0.2.2
 -------------
 * Fixes an issue where plugin dependencies were incorrectly classified as libraries when using a `resolutionStrategy` mapping plugin ids. [(#11)](https://github.com/littlerobots/version-catalog-update-plugin/issues/11)
 
