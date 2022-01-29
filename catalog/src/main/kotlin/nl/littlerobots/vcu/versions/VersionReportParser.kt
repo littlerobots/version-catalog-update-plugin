@@ -36,7 +36,13 @@ class VersionReportParser {
         .add(DependencyJsonAdapter())
         .addLast(KotlinJsonAdapterFactory()).build()
 
-    fun generateCatalog(versionsJson: InputStream): VersionCatalog {
+    /**
+     * Generate a version Catalog file from a version report
+     *
+     * @param versionsJson the report json inputstream
+     * @param useLatestVersions whether to add the latest versions in the returned [VersionCatalog] or the current versions. Defaults to true.
+     */
+    fun generateCatalog(versionsJson: InputStream, useLatestVersions: Boolean = true): VersionReportResult {
         val adapter = moshi.adapter(VersionsReport::class.java)
         val report = versionsJson.use {
             adapter.fromJson(it.source().buffer())!!
@@ -55,28 +61,36 @@ class VersionReportParser {
             it.tomlKey
         }
 
-        val libraries = dependencies.filterNot { it.name.endsWith(GRADLE_PLUGIN_MODULE_POST_FIX) }.associate { dependency ->
-            val key = if (shortNames[dependency.tomlKey]!!.size == 1) {
-                dependency.tomlKey
-            } else {
-                "${dependency.group}.${dependency.name}".toTomlKey()
+        val libraries =
+            dependencies.filterNot { it.name.endsWith(GRADLE_PLUGIN_MODULE_POST_FIX) }.associate { dependency ->
+                val key = if (shortNames[dependency.tomlKey]!!.size == 1) {
+                    dependency.tomlKey
+                } else {
+                    "${dependency.group}.${dependency.name}".toTomlKey()
+                }
+                key to Library(
+                    group = dependency.group,
+                    name = dependency.name,
+                    version = VersionDefinition.Simple(if (useLatestVersions) dependency.latestVersion else dependency.currentVersion)
+                )
             }
-            key to Library(
-                group = dependency.group,
-                name = dependency.name,
-                version = VersionDefinition.Simple(dependency.latestVersion)
+
+        val plugins = dependencies.filter { it.name.endsWith(GRADLE_PLUGIN_MODULE_POST_FIX) }.associate { dependency ->
+            val pluginId = dependency.name.dropLast(GRADLE_PLUGIN_MODULE_POST_FIX.length)
+            pluginId.toTomlKey() to Plugin(
+                id = pluginId,
+                version = VersionDefinition.Simple(if (useLatestVersions) dependency.latestVersion else dependency.currentVersion)
             )
         }
 
-        val plugins = dependencies.filter { it.name.endsWith(GRADLE_PLUGIN_MODULE_POST_FIX) }.associate {
-            dependency ->
-            val pluginId = dependency.name.dropLast(GRADLE_PLUGIN_MODULE_POST_FIX.length)
-            pluginId.toTomlKey() to Plugin(id = pluginId, version = VersionDefinition.Simple(dependency.latestVersion))
-        }
-
-        return VersionCatalog(emptyMap(), libraries, emptyMap(), plugins)
+        return VersionReportResult(report.exceeded.dependencies.toSet(), VersionCatalog(emptyMap(), libraries, emptyMap(), plugins))
     }
 }
+
+data class VersionReportResult(
+    val exceeded: Set<Dependency>,
+    val catalog: VersionCatalog
+)
 
 private val Dependency.tomlKey: String
     get() {

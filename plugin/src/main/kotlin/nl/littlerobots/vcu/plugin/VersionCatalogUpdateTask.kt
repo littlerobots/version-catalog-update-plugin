@@ -74,7 +74,8 @@ abstract class VersionCatalogUpdateTask : DefaultTask() {
 
         val reportParser = VersionReportParser()
 
-        val catalogFromDependencies = reportParser.generateCatalog(reportJson.get().asFile.inputStream())
+        val versionsReportResult = reportParser.generateCatalog(reportJson.get().asFile.inputStream(), useLatestVersions = !createCatalog)
+        val catalogFromDependencies = versionsReportResult.catalog
 
         val currentCatalog = if (catalogFile.get().exists()) {
             if (createCatalog) {

@@ -223,6 +223,185 @@ class VersionCatalogUpdatePluginTest {
     }
 
     @Test
+    fun `create uses current versions`() {
+        val reportJson = tempDir.newFile()
+
+        buildFile.writeText(
+            """
+            plugins {
+                id "nl.littlerobots.version-catalog-update"
+            }
+
+            tasks.named("versionCatalogUpdate").configure {
+                it.reportJson = file("${reportJson.name}")
+            }
+            """.trimIndent()
+        )
+
+        // empty report
+        reportJson.writeText(
+            """
+            {
+                "current": {
+                    "dependencies": [
+                        {
+                            "group": "androidx.activity",
+                            "userReason": null,
+                            "version": "1.4.0",
+                            "projectUrl": "https://developer.android.com/jetpack/androidx/releases/activity#1.4.0",
+                            "name": "activity-compose"
+                        }
+                   ]
+                },
+                "exceeded": {
+                    "dependencies": [
+                        {
+                            "group": "androidx.compose.ui",
+                            "latest": "1.1.0-rc01",
+                            "userReason": null,
+                            "version": "1.1.0-rc02",
+                            "projectUrl": "https://developer.android.com/jetpack/androidx/releases/compose-ui#1.1.0-rc01",
+                            "name": "ui-test-junit4"
+                        }
+                    ]
+                },
+                "outdated": {
+                    "dependencies": [
+                        {
+                            "group": "io.coil-kt",
+                            "available": {
+                                "release": null,
+                                "milestone": "2.0.0-alpha06",
+                                "integration": null
+                            },
+                            "userReason": null,
+                            "version": "2.0.0-alpha05",
+                            "projectUrl": "https://github.com/coil-kt/coil",
+                            "name": "coil-compose"
+                        }
+                    ]
+                }
+            }
+            """.trimIndent()
+        )
+
+        GradleRunner.create()
+            .withProjectDir(tempDir.root)
+            .withArguments("versionCatalogUpdate", "--create")
+            .withPluginClasspath()
+            .build()
+
+        val libs = File(tempDir.root, "gradle/libs.versions.toml").readText()
+        // "create" will add both a library and a plugin because all plugin dependencies are considered in one go
+        // and this could therefore be a normal "apply" in a subproject or a plugin declaration
+        assertEquals(
+            """
+                [libraries]
+                androidx-activity-activity-compose = "androidx.activity:activity-compose:1.4.0"
+                androidx-compose-ui-ui-test-junit4 = "androidx.compose.ui:ui-test-junit4:1.1.0-rc02"
+                io-coil-kt-coil-compose = "io.coil-kt:coil-compose:2.0.0-alpha05"
+
+            """.trimIndent(),
+            libs
+        )
+    }
+
+    @Test
+    fun `normal invocation updates versions`() {
+        val reportJson = tempDir.newFile()
+
+        buildFile.writeText(
+            """
+            plugins {
+                id "nl.littlerobots.version-catalog-update"
+            }
+
+            tasks.named("versionCatalogUpdate").configure {
+                it.reportJson = file("${reportJson.name}")
+            }
+            """.trimIndent()
+        )
+
+        // empty report
+        reportJson.writeText(
+            """
+            {
+                "current": {
+                    "dependencies": [
+                        {
+                            "group": "androidx.activity",
+                            "userReason": null,
+                            "version": "1.4.0",
+                            "projectUrl": "https://developer.android.com/jetpack/androidx/releases/activity#1.4.0",
+                            "name": "activity-compose"
+                        }
+                   ]
+                },
+                "exceeded": {
+                    "dependencies": [
+                        {
+                            "group": "androidx.compose.ui",
+                            "latest": "1.1.0-rc01",
+                            "userReason": null,
+                            "version": "1.1.0-rc02",
+                            "projectUrl": "https://developer.android.com/jetpack/androidx/releases/compose-ui#1.1.0-rc01",
+                            "name": "ui-test-junit4"
+                        }
+                    ]
+                },
+                "outdated": {
+                    "dependencies": [
+                        {
+                            "group": "io.coil-kt",
+                            "available": {
+                                "release": null,
+                                "milestone": "2.0.0-alpha06",
+                                "integration": null
+                            },
+                            "userReason": null,
+                            "version": "2.0.0-alpha05",
+                            "projectUrl": "https://github.com/coil-kt/coil",
+                            "name": "coil-compose"
+                        }
+                    ]
+                }
+            }
+            """.trimIndent()
+        )
+
+        val toml = """
+                [libraries]
+                androidx-activity-activity-compose = "androidx.activity:activity-compose:1.4.0"
+                androidx-compose-ui-ui-test-junit4 = "androidx.compose.ui:ui-test-junit4:1.1.0-rc02"
+                io-coil-kt-coil-compose = "io.coil-kt:coil-compose:2.0.0-alpha05"
+
+        """.trimIndent()
+
+        File(tempDir.root, "gradle").mkdir()
+        File(tempDir.root, "gradle/libs.versions.toml").writeText(toml)
+
+        GradleRunner.create()
+            .withProjectDir(tempDir.root)
+            .withArguments("versionCatalogUpdate")
+            .withPluginClasspath()
+            .build()
+
+        val libs = File(tempDir.root, "gradle/libs.versions.toml").readText()
+        // "create" will add both a library and a plugin because all plugin dependencies are considered in one go
+        // and this could therefore be a normal "apply" in a subproject or a plugin declaration
+        assertEquals(
+            """
+                [libraries]
+                androidx-activity-activity-compose = "androidx.activity:activity-compose:1.4.0"
+                androidx-compose-ui-ui-test-junit4 = "androidx.compose.ui:ui-test-junit4:1.1.0-rc01"
+                io-coil-kt-coil-compose = "io.coil-kt:coil-compose:2.0.0-alpha06"
+
+            """.trimIndent(),
+            libs
+        )
+    }
+
+    @Test
     fun `adds VersionCatalogUpdateTask and sets report path`() {
         val project: Project = ProjectBuilder.builder().build()
         project.pluginManager.apply("com.github.ben-manes.versions")

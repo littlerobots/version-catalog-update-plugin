@@ -20,6 +20,7 @@ import nl.littlerobots.vcu.model.Library
 import nl.littlerobots.vcu.model.Plugin
 import nl.littlerobots.vcu.model.VersionDefinition
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.StringWriter
 
@@ -42,7 +43,7 @@ class VersionReportParserTest {
         """.trimIndent()
         val updater = VersionReportParser()
 
-        val catalog = updater.generateCatalog(report.byteInputStream())
+        val catalog = updater.generateCatalog(report.byteInputStream()).catalog
 
         assertEquals(1, catalog.libraries.size)
         assertEquals(
@@ -79,7 +80,7 @@ class VersionReportParserTest {
         """.trimIndent()
         val updater = VersionReportParser()
 
-        val catalog = updater.generateCatalog(report.byteInputStream())
+        val catalog = updater.generateCatalog(report.byteInputStream()).catalog
 
         assertEquals(1, catalog.libraries.size)
         assertEquals(
@@ -114,9 +115,9 @@ class VersionReportParserTest {
 
         val updater = VersionReportParser()
 
-        val catalog = updater.generateCatalog(report.byteInputStream())
+        val result = updater.generateCatalog(report.byteInputStream())
 
-        assertEquals(1, catalog.libraries.size)
+        assertEquals(1, result.catalog.libraries.size)
         // for exceeded the "latest" version is the preferred value in the toml file, even if the dependency is
         // updated by transitive dependencies
         assertEquals(
@@ -125,8 +126,9 @@ class VersionReportParserTest {
                 name = "datastore",
                 version = VersionDefinition.Simple("1.0.0")
             ),
-            catalog.libraries["androidx-datastore"]
+            result.catalog.libraries["androidx-datastore"]
         )
+        assertTrue(result.exceeded.isNotEmpty())
     }
 
     @Test
@@ -147,7 +149,7 @@ class VersionReportParserTest {
         """.trimIndent()
         val updater = VersionReportParser()
 
-        val catalog = updater.generateCatalog(report.byteInputStream())
+        val catalog = updater.generateCatalog(report.byteInputStream()).catalog
 
         val writer = VersionCatalogWriter()
         val output = StringWriter()
