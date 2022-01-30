@@ -33,9 +33,9 @@ data class Library(
     }
 }
 
-fun Library.resolveSimpleVersionReference(versionCatalog: VersionCatalog): String? {
+fun Library.resolveSimpleVersionReference(versionCatalog: VersionCatalog): VersionDefinition? {
     return when (version) {
-        is VersionDefinition.Simple -> version.version
+        is VersionDefinition.Simple -> version
         is VersionDefinition.Reference -> {
             versionCatalog.versions[version.ref]
         }

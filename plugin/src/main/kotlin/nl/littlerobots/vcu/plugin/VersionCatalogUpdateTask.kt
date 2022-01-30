@@ -21,6 +21,7 @@ import nl.littlerobots.vcu.model.VersionCatalog
 import nl.littlerobots.vcu.model.VersionDefinition
 import nl.littlerobots.vcu.model.mapPlugins
 import nl.littlerobots.vcu.model.resolveSimpleVersionReference
+import nl.littlerobots.vcu.model.resolvedVersion
 import nl.littlerobots.vcu.model.sortKeys
 import nl.littlerobots.vcu.model.updateFrom
 import nl.littlerobots.vcu.versions.VersionReportParser
@@ -113,6 +114,37 @@ abstract class VersionCatalogUpdateTask : DefaultTask() {
         if (versionsReportResult.exceeded.isNotEmpty() && !createCatalog) {
             emitExceededWarning(versionsReportResult.exceeded, currentCatalog)
         }
+
+        checkForUpdatesForLibrariesWithVersionCondition(updatedCatalog, versionsReportResult.outdated)
+    }
+
+    private fun checkForUpdatesForLibrariesWithVersionCondition(catalog: VersionCatalog, outdated: Set<Dependency>) {
+        val librariesWithVersionCondition = (catalog.libraries.values).filter {
+            it.resolvedVersion(catalog) is VersionDefinition.Condition
+        }.mapNotNull { library ->
+            outdated.firstOrNull {
+                it.group == library.group && it.name == library.name
+            }?.let {
+                library to it
+            }
+        }.toMap()
+
+        if (librariesWithVersionCondition.isNotEmpty()) {
+            project.logger.warn("There are libraries using a version condition that could be updated:")
+            for (library in librariesWithVersionCondition) {
+                val key = catalog.libraries.entries.first {
+                    it.value == library.key
+                }.key
+
+                val versionRef = when (val version = library.key.version) {
+                    is VersionDefinition.Reference -> " ref:${version.ref}"
+                    else -> ""
+                }
+                project.logger.warn(
+                    " - ${library.key.module} ($key$versionRef) -> ${library.value.latestVersion}"
+                )
+            }
+        }
     }
 
     private fun emitExceededWarning(dependencies: Set<Dependency>, catalog: VersionCatalog) {
@@ -128,17 +160,24 @@ abstract class VersionCatalogUpdateTask : DefaultTask() {
                     if (!didOutputPreamble) {
                         project.logger.warn(
                             "Some libraries declared in the version catalog did not match the resolved version used this project.\n" +
-                                "This mismatch can occur when you declare a version that does not exist, or when a dependency is referenced by a transitive dependency that requires a different version.\n" +
+                                "This mismatch can occur when a version is declared that does not exist, or when a dependency is referenced by a transitive dependency that requires a different version.\n" +
                                 "The version in the version catalog has been updated to the actual version. If this is not what you want, consider using a strict version definition.\n\n" +
                                 "The affected libraries are:"
                         )
                         didOutputPreamble = true
                     }
                     val versionRef = when (val version = it.value.version) {
-                        is VersionDefinition.Reference -> " (${version.ref}) "
+                        is VersionDefinition.Reference -> " (${version.ref})"
                         else -> ""
                     }
-                    project.logger.warn("\t${dependency.group}:${dependency.name} (libs.${declaredCatalogEntry.key.replace('-','.')})\n\t\trequested version: ${dependency.currentVersion}$versionRef --> ${dependency.latestVersion}")
+                    project.logger.warn(
+                        " - ${dependency.group}:${dependency.name} (libs.${
+                        declaredCatalogEntry.key.replace(
+                            '-',
+                            '.'
+                        )
+                        })\n     requested: ${dependency.currentVersion}$versionRef, resolved: ${dependency.latestVersion}"
+                    )
                 }
             }
         }

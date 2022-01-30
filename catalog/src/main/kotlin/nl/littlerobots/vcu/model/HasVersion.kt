@@ -18,3 +18,14 @@ package nl.littlerobots.vcu.model
 interface HasVersion {
     val version: VersionDefinition
 }
+
+fun HasVersion.resolvedVersion(catalog: VersionCatalog): VersionDefinition {
+    return when (val version = version) {
+        is VersionDefinition.Condition,
+        is VersionDefinition.Unspecified,
+        is VersionDefinition.Simple -> version
+        is VersionDefinition.Reference -> checkNotNull(catalog.versions[version.ref]) {
+            "Version reference ${version.ref} is missing in the catalog"
+        }
+    }
+}

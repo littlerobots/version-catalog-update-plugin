@@ -416,7 +416,6 @@ class VersionCatalogUpdatePluginTest {
             """.trimIndent()
         )
 
-        // empty report
         reportJson.writeText(
             """
             {
@@ -467,17 +466,96 @@ class VersionCatalogUpdatePluginTest {
 
             > Task :versionCatalogUpdate
             Some libraries declared in the version catalog did not match the resolved version used this project.
-            This mismatch can occur when you declare a version that does not exist, or when a dependency is referenced by a transitive dependency that requires a different version.
+            This mismatch can occur when a version is declared that does not exist, or when a dependency is referenced by a transitive dependency that requires a different version.
             The version in the version catalog has been updated to the actual version. If this is not what you want, consider using a strict version definition.
 
             The affected libraries are:
-            	androidx.compose.ui:ui-test-junit4 (libs.androidx.test.junit4)
-            		requested version: 1.1.0-rc02 --> 1.1.0-rc01
+             - androidx.compose.ui:ui-test-junit4 (libs.androidx.test.junit4)
+                 requested: 1.1.0-rc02, resolved: 1.1.0-rc01
 
             BUILD SUCCESSFUL in 4s
             1 actionable task: 1 executed
 
-        """.trimIndent(),
+            """.trimIndent(),
+            buildResult.output
+        )
+    }
+
+    @Test
+    fun `available update for version condition emits warning`() {
+        val reportJson = tempDir.newFile()
+
+        buildFile.writeText(
+            """
+            plugins {
+                id "nl.littlerobots.version-catalog-update"
+            }
+
+            tasks.named("versionCatalogUpdate").configure {
+                it.reportJson = file("${reportJson.name}")
+            }
+            """.trimIndent()
+        )
+
+        reportJson.writeText(
+            """
+            {
+                "outdated": {
+                    "dependencies": [
+                        {
+                            "group": "io.coil-kt",
+                            "available": {
+                                "release": null,
+                                "milestone": "2.0.0-alpha06",
+                                "integration": null
+                            },
+                            "userReason": null,
+                            "version": "2.0.0-alpha05",
+                            "projectUrl": "https://github.com/coil-kt/coil",
+                            "name": "coil-compose"
+                        }
+                    ]
+                }            }
+            """.trimIndent()
+        )
+
+        val toml = """
+                [libraries]
+                coil = { module = "io.coil-kt:coil-compose", version = {strictly = "1.0.0"}}
+
+        """.trimIndent()
+
+        File(tempDir.root, "gradle").mkdir()
+        File(tempDir.root, "gradle/libs.versions.toml").writeText(toml)
+
+        val buildResult = GradleRunner.create()
+            .withProjectDir(tempDir.root)
+            .withArguments("versionCatalogUpdate")
+            .withPluginClasspath()
+            .build()
+
+        val libs = File(tempDir.root, "gradle/libs.versions.toml").readText()
+
+        assertEquals(
+            """
+                [libraries]
+                coil = { module = "io.coil-kt:coil-compose", version = { strictly = "1.0.0" } }
+
+            """.trimIndent(),
+            libs
+        )
+        assertEquals(
+            """
+            Type-safe dependency accessors is an incubating feature.
+
+            > Task :versionCatalogUpdate
+            There are libraries using a version condition that could be updated:
+             - io.coil-kt:coil-compose (coil) -> 2.0.0-alpha06
+
+            BUILD SUCCESSFUL in 4s
+            1 actionable task: 1 executed
+
+            """.trimIndent(),
             buildResult.output
         )
     }

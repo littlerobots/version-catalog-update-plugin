@@ -83,12 +83,17 @@ class VersionReportParser {
             )
         }
 
-        return VersionReportResult(report.exceeded.dependencies.toSet(), VersionCatalog(emptyMap(), libraries, emptyMap(), plugins))
+        return VersionReportResult(
+            report.exceeded.dependencies.toSet(),
+            report.outdated.dependencies.toSet(),
+            VersionCatalog(emptyMap(), libraries, emptyMap(), plugins)
+        )
     }
 }
 
 data class VersionReportResult(
     val exceeded: Set<Dependency>,
+    val outdated: Set<Dependency>,
     val catalog: VersionCatalog
 )
 
