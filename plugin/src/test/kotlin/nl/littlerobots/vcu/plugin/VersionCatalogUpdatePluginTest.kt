@@ -460,11 +460,9 @@ class VersionCatalogUpdatePluginTest {
             """.trimIndent(),
             libs
         )
-        assertEquals(
-            """
-            Type-safe dependency accessors is an incubating feature.
-
-            > Task :versionCatalogUpdate
+        assertTrue(
+            buildResult.output.contains(
+                """
             Some libraries declared in the version catalog did not match the resolved version used this project.
             This mismatch can occur when a version is declared that does not exist, or when a dependency is referenced by a transitive dependency that requires a different version.
             The version in the version catalog has been updated to the actual version. If this is not what you want, consider using a strict version definition.
@@ -473,11 +471,8 @@ class VersionCatalogUpdatePluginTest {
              - androidx.compose.ui:ui-test-junit4 (libs.androidx.test.junit4)
                  requested: 1.1.0-rc02, resolved: 1.1.0-rc01
 
-            BUILD SUCCESSFUL in 4s
-            1 actionable task: 1 executed
-
-            """.trimIndent(),
-            buildResult.output
+                """.trimIndent()
+            )
         )
     }
 
@@ -544,19 +539,13 @@ class VersionCatalogUpdatePluginTest {
             """.trimIndent(),
             libs
         )
-        assertEquals(
-            """
-            Type-safe dependency accessors is an incubating feature.
-
-            > Task :versionCatalogUpdate
+        assertTrue(
+            buildResult.output.contains(
+                """
             There are libraries using a version condition that could be updated:
              - io.coil-kt:coil-compose (coil) -> 2.0.0-alpha06
-
-            BUILD SUCCESSFUL in 4s
-            1 actionable task: 1 executed
-
-            """.trimIndent(),
-            buildResult.output
+                """.trimIndent()
+            )
         )
     }
 
