@@ -32,3 +32,14 @@ data class Library(
         module.split(':').last()
     }
 }
+
+fun Library.resolveSimpleVersionReference(versionCatalog: VersionCatalog): String? {
+    return when (version) {
+        is VersionDefinition.Simple -> version.version
+        is VersionDefinition.Reference -> {
+            versionCatalog.versions[version.ref]
+        }
+        // complex version
+        else -> null
+    }
+}

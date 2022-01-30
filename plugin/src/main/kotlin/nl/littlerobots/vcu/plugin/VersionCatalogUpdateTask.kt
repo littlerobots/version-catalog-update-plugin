@@ -18,10 +18,13 @@ package nl.littlerobots.vcu.plugin
 import nl.littlerobots.vcu.VersionCatalogParser
 import nl.littlerobots.vcu.VersionCatalogWriter
 import nl.littlerobots.vcu.model.VersionCatalog
+import nl.littlerobots.vcu.model.VersionDefinition
 import nl.littlerobots.vcu.model.mapPlugins
+import nl.littlerobots.vcu.model.resolveSimpleVersionReference
 import nl.littlerobots.vcu.model.sortKeys
 import nl.littlerobots.vcu.model.updateFrom
 import nl.littlerobots.vcu.versions.VersionReportParser
+import nl.littlerobots.vcu.versions.model.Dependency
 import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
 import org.gradle.api.Project
@@ -74,7 +77,8 @@ abstract class VersionCatalogUpdateTask : DefaultTask() {
 
         val reportParser = VersionReportParser()
 
-        val versionsReportResult = reportParser.generateCatalog(reportJson.get().asFile.inputStream(), useLatestVersions = !createCatalog)
+        val versionsReportResult =
+            reportParser.generateCatalog(reportJson.get().asFile.inputStream(), useLatestVersions = !createCatalog)
         val catalogFromDependencies = versionsReportResult.catalog
 
         val currentCatalog = if (catalogFile.get().exists()) {
@@ -105,6 +109,39 @@ abstract class VersionCatalogUpdateTask : DefaultTask() {
 
         val writer = VersionCatalogWriter()
         writer.write(updatedCatalog, catalogFile.get().writer())
+
+        if (versionsReportResult.exceeded.isNotEmpty() && !createCatalog) {
+            emitExceededWarning(versionsReportResult.exceeded, currentCatalog)
+        }
+    }
+
+    private fun emitExceededWarning(dependencies: Set<Dependency>, catalog: VersionCatalog) {
+        var didOutputPreamble = false
+        for (dependency in dependencies) {
+            val declaredCatalogEntry = catalog.libraries.entries.firstOrNull {
+                it.value.group == dependency.group && it.value.name == dependency.name
+            }
+            declaredCatalogEntry?.let {
+                val resolvedVersion = it.value.resolveSimpleVersionReference(catalog)
+                // only warn for versions that we can resolve / handle
+                if (resolvedVersion != null) {
+                    if (!didOutputPreamble) {
+                        project.logger.warn(
+                            "Some libraries declared in the version catalog did not match the resolved version used this project.\n" +
+                                "This mismatch can occur when you declare a version that does not exist, or when a dependency is referenced by a transitive dependency that requires a different version.\n" +
+                                "The version in the version catalog has been updated to the actual version. If this is not what you want, consider using a strict version definition.\n\n" +
+                                "The affected libraries are:"
+                        )
+                        didOutputPreamble = true
+                    }
+                    val versionRef = when (val version = it.value.version) {
+                        is VersionDefinition.Reference -> " (${version.ref}) "
+                        else -> ""
+                    }
+                    project.logger.warn("\t${dependency.group}:${dependency.name} (libs.${declaredCatalogEntry.key.replace('-','.')})\n\t\trequested version: ${dependency.currentVersion}$versionRef --> ${dependency.latestVersion}")
+                }
+            }
+        }
     }
 
     /**
@@ -114,9 +151,10 @@ abstract class VersionCatalogUpdateTask : DefaultTask() {
      * @return a set of [ResolvedArtifact], may be empty
      */
     private fun getResolvedBuildScriptArtifacts(project: Project): Set<ResolvedArtifact> {
-        val projectResolvedArtifacts = project.buildscript.configurations.firstOrNull()?.resolvedConfiguration?.resolvedArtifacts?.filterNotNull()
-            ?.toSet()
-            ?: (emptySet())
+        val projectResolvedArtifacts =
+            project.buildscript.configurations.firstOrNull()?.resolvedConfiguration?.resolvedArtifacts?.filterNotNull()
+                ?.toSet()
+                ?: (emptySet())
         return if (project.subprojects.isNotEmpty()) {
             project.subprojects.map { getResolvedBuildScriptArtifacts(it) }.flatten().toSet() + projectResolvedArtifacts
         } else {

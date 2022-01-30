@@ -387,8 +387,7 @@ class VersionCatalogUpdatePluginTest {
             .build()
 
         val libs = File(tempDir.root, "gradle/libs.versions.toml").readText()
-        // "create" will add both a library and a plugin because all plugin dependencies are considered in one go
-        // and this could therefore be a normal "apply" in a subproject or a plugin declaration
+
         assertEquals(
             """
                 [libraries]
@@ -398,6 +397,88 @@ class VersionCatalogUpdatePluginTest {
 
             """.trimIndent(),
             libs
+        )
+    }
+
+    @Test
+    fun `exceeded dependencies emit warning`() {
+        val reportJson = tempDir.newFile()
+
+        buildFile.writeText(
+            """
+            plugins {
+                id "nl.littlerobots.version-catalog-update"
+            }
+
+            tasks.named("versionCatalogUpdate").configure {
+                it.reportJson = file("${reportJson.name}")
+            }
+            """.trimIndent()
+        )
+
+        // empty report
+        reportJson.writeText(
+            """
+            {
+                "exceeded": {
+                    "dependencies": [
+                        {
+                            "group": "androidx.compose.ui",
+                            "latest": "1.1.0-rc01",
+                            "userReason": null,
+                            "version": "1.1.0-rc02",
+                            "projectUrl": "https://developer.android.com/jetpack/androidx/releases/compose-ui#1.1.0-rc01",
+                            "name": "ui-test-junit4"
+                        }
+                    ]
+                }
+            }
+            """.trimIndent()
+        )
+
+        val toml = """
+                [libraries]
+                androidx-test-junit4 = "androidx.compose.ui:ui-test-junit4:1.1.0-rc02"
+
+        """.trimIndent()
+
+        File(tempDir.root, "gradle").mkdir()
+        File(tempDir.root, "gradle/libs.versions.toml").writeText(toml)
+
+        val buildResult = GradleRunner.create()
+            .withProjectDir(tempDir.root)
+            .withArguments("versionCatalogUpdate")
+            .withPluginClasspath()
+            .build()
+
+        val libs = File(tempDir.root, "gradle/libs.versions.toml").readText()
+
+        assertEquals(
+            """
+                [libraries]
+                androidx-test-junit4 = "androidx.compose.ui:ui-test-junit4:1.1.0-rc01"
+
+            """.trimIndent(),
+            libs
+        )
+        assertEquals(
+            """
+            Type-safe dependency accessors is an incubating feature.
+
+            > Task :versionCatalogUpdate
+            Some libraries declared in the version catalog did not match the resolved version used this project.
+            This mismatch can occur when you declare a version that does not exist, or when a dependency is referenced by a transitive dependency that requires a different version.
+            The version in the version catalog has been updated to the actual version. If this is not what you want, consider using a strict version definition.
+
+            The affected libraries are:
+            	androidx.compose.ui:ui-test-junit4 (libs.androidx.test.junit4)
+            		requested version: 1.1.0-rc02 --> 1.1.0-rc01
+
+            BUILD SUCCESSFUL in 4s
+            1 actionable task: 1 executed
+
+        """.trimIndent(),
+            buildResult.output
         )
     }
 
