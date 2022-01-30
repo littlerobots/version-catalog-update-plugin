@@ -29,12 +29,20 @@ class VersionCatalogParserTest {
             [versions]
             test = "1.0.0"
             test2 = "2.0.0"
+            test3 = { strictly = "2.0.0" }
         """.trimIndent()
         val parser = VersionCatalogParser()
 
         val result = parser.parse(toml.byteInputStream())
 
-        assertEquals(mapOf("test" to "1.0.0", "test2" to "2.0.0"), result.versions)
+        assertEquals(
+            mapOf(
+                "test" to VersionDefinition.Simple("1.0.0"),
+                "test2" to VersionDefinition.Simple("2.0.0"),
+                "test3" to VersionDefinition.Condition(mapOf("strictly" to "2.0.0"))
+            ),
+            result.versions
+        )
     }
 
     @Test
