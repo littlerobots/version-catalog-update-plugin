@@ -99,13 +99,13 @@ class VersionCatalogTest {
             ),
             result.libraries["generated-library-reference-2"]
         )
-        assertEquals("1.0", result.versions["nl-littlerobots-test"])
+        assertEquals(VersionDefinition.Simple("1.0"), result.versions["nl-littlerobots-test"])
     }
 
     @Test
     fun `updateCatalog updates version reference for group id if all on the same version`() {
         val catalog = VersionCatalog(
-            mapOf("my-lib" to "1.0"),
+            mapOf("my-lib" to VersionDefinition.Simple("1.0")),
             mapOf(
                 "generated-library-reference" to Library(
                     module = "nl.littlerobots.test:example",
@@ -155,13 +155,13 @@ class VersionCatalogTest {
             ),
             result.libraries["generated-library-reference-2"]
         )
-        assertEquals("1.1", result.versions["my-lib"])
+        assertEquals(VersionDefinition.Simple("1.1"), result.versions["my-lib"])
     }
 
     @Test
     fun `updateCatalog updates version reference if defined`() {
         val catalog = VersionCatalog(
-            mapOf("my-lib" to "1.0"),
+            mapOf("my-lib" to VersionDefinition.Simple("1.0")),
             mapOf(
                 "generated-library-reference" to Library(
                     module = "nl.littlerobots.test:example",
@@ -195,13 +195,47 @@ class VersionCatalogTest {
             ),
             result.libraries["generated-library-reference"]
         )
-        assertEquals("1.1", result.versions["my-lib"])
+        assertEquals(VersionDefinition.Simple("1.1"), result.versions["my-lib"])
+    }
+
+    @Test
+    fun `updateCatalog maintains version condition reference if defined`() {
+        val catalog = VersionCatalog(
+            // the actual condition does not matter
+            mapOf(
+                "my-lib" to VersionDefinition.Condition(mapOf()),
+                "my-plugin" to VersionDefinition.Condition(mapOf())
+            ),
+            mapOf(
+                "generated-library-reference" to Library(
+                    module = "nl.littlerobots.test:example",
+                    version = VersionDefinition.Reference("my-lib")
+                )
+            ),
+            emptyMap(),
+            mapOf("my-plugin" to Plugin("test.plugin", version = VersionDefinition.Reference("my-plugin")))
+        )
+        val updatedCatalog = VersionCatalog(
+            emptyMap(),
+            mapOf(
+                "generated-library-reference" to Library(
+                    module = "nl.littlerobots.test:example",
+                    version = VersionDefinition.Simple("1.1")
+                )
+            ),
+            emptyMap(),
+            mapOf("my-plugin" to Plugin("test.plugin", version = VersionDefinition.Simple("2.0")))
+        )
+
+        val result = catalog.updateFrom(updatedCatalog, true)
+
+        assertEquals(catalog, result)
     }
 
     @Test
     fun `updateCatalog updates version reference for multiple libraries`() {
         val catalog = VersionCatalog(
-            mapOf("my-lib" to "1.0"),
+            mapOf("my-lib" to VersionDefinition.Simple("1.0")),
             mapOf(
                 "generated-library-reference" to Library(
                     module = "nl.littlerobots.test:example",
@@ -254,7 +288,7 @@ class VersionCatalogTest {
 
         assertEquals(1, result.plugins.size)
         assertEquals(Plugin("my.plugin.id", version = VersionDefinition.Reference("my-lib")), result.plugins["plugin"])
-        assertEquals("1.1", result.versions["my-lib"])
+        assertEquals(VersionDefinition.Simple("1.1"), result.versions["my-lib"])
     }
 
     @Test
@@ -401,7 +435,13 @@ class VersionCatalogTest {
 
         val result = catalog.pruneVersions()
 
-        assertEquals(mapOf("junit" to "4.13.2", "plugin" to "1.0.0"), result.versions)
+        assertEquals(
+            mapOf(
+                "junit" to VersionDefinition.Simple("4.13.2"),
+                "plugin" to VersionDefinition.Simple("1.0.0")
+            ),
+            result.versions
+        )
     }
 
     @Test
@@ -476,6 +516,34 @@ class VersionCatalogTest {
     }
 
     @Test
+    fun `keeps complex version definition`() {
+        val catalog = VersionCatalogParser().parse(
+            """
+            [libraries]
+            test = { group = "com.mycompany", name = "alternate", version = { require = "1.4" } }
+            """.trimIndent().byteInputStream()
+        )
+
+        val update = VersionCatalogParser().parse(
+            """
+            [libraries]
+            test = "com.mycompany:alternate:1.8"
+            """.trimIndent().byteInputStream()
+        )
+
+        val result = catalog.updateFrom(update)
+
+        assertEquals(1, result.libraries.size)
+        assertEquals(
+            Library(
+                module = "com.mycompany:alternate",
+                version = VersionDefinition.Condition(mapOf("require" to "1.4"))
+            ),
+            result.libraries["test"]
+        )
+    }
+
+    @Test
     fun `adds plugins from module plugin mapping`() {
         val catalog = VersionCatalogParser().parse(
             """
@@ -534,7 +602,7 @@ class VersionCatalogTest {
     @Test
     fun `Retains unused version references`() {
         val catalog = VersionCatalog(
-            versions = mapOf("unused" to "1.0.0"),
+            versions = mapOf("unused" to VersionDefinition.Simple("1.0.0")),
             libraries = emptyMap(),
             bundles = emptyMap(),
             plugins = emptyMap()
@@ -548,7 +616,7 @@ class VersionCatalogTest {
     @Test
     fun `Removes unused version references`() {
         val catalog = VersionCatalog(
-            versions = mapOf("unused" to "1.0.0"),
+            versions = mapOf("unused" to VersionDefinition.Simple("1.0.0")),
             libraries = emptyMap(),
             bundles = emptyMap(),
             plugins = emptyMap()

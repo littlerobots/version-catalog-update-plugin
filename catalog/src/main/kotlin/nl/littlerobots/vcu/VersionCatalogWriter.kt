@@ -28,7 +28,7 @@ class VersionCatalogWriter {
         if (versionCatalog.versions.isNotEmpty()) {
             printWriter.println("[versions]")
             for (version in versionCatalog.versions) {
-                printWriter.println("""${version.key} = "${version.value}"""")
+                printWriter.println("""${version.key} = ${formatVersion(version.value)}""")
             }
         }
         if (versionCatalog.libraries.isNotEmpty()) {
@@ -104,5 +104,15 @@ class VersionCatalogWriter {
             }.toString()
         }
         is VersionDefinition.Unspecified -> "{ module = \"${library.module}\" }"
+    }
+
+    private fun formatVersion(versionDefinition: VersionDefinition): String = when (versionDefinition) {
+        is VersionDefinition.Simple -> "\"${versionDefinition.version}\""
+        is VersionDefinition.Condition -> {
+            versionDefinition.definition.entries.joinToString(prefix = "{ ", postfix = " }", separator = ", ") {
+                "${it.key} = \"${it.value}\""
+            }
+        }
+        else -> throw IllegalStateException("Invalid version definition $versionDefinition")
     }
 }

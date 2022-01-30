@@ -25,10 +25,15 @@ import java.io.StringWriter
 
 class VersionCatalogWriterTest {
     @Test
-    fun `writes version definitions`() {
+    fun `writes simple version definitions`() {
         val catalogWriter = VersionCatalogWriter()
         val writer = StringWriter()
-        val catalog = VersionCatalog(versions = mapOf("test" to "1.0"), emptyMap(), emptyMap(), emptyMap())
+        val catalog = VersionCatalog(
+            versions = mapOf("test" to VersionDefinition.Simple("1.0")),
+            emptyMap(),
+            emptyMap(),
+            emptyMap()
+        )
         catalogWriter.write(catalog, writer)
 
         assertEquals(
@@ -36,6 +41,28 @@ class VersionCatalogWriterTest {
             |test = "1.0"
             |
         """.trimMargin(),
+            writer.toString()
+        )
+    }
+
+    @Test
+    fun `writes version condition definitions`() {
+        val catalogWriter = VersionCatalogWriter()
+        val writer = StringWriter()
+        val catalog = VersionCatalog(
+            versions = mapOf("test" to VersionDefinition.Condition(mapOf("strictly" to "1.5.2"))),
+            emptyMap(),
+            emptyMap(),
+            emptyMap()
+        )
+        catalogWriter.write(catalog, writer)
+
+        assertEquals(
+            """
+            [versions]
+            test = { strictly = "1.5.2" }
+
+            """.trimIndent(),
             writer.toString()
         )
     }

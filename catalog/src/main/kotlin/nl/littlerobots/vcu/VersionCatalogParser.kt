@@ -29,7 +29,7 @@ class VersionCatalogParser {
         val mapper = TomlMapper()
         val catalog = inputStream.use { mapper.readValue(it, Map::class.java) as Map<String, Any> }
 
-        val versions = catalog.getTable("versions")?.toTypedMap<String>() ?: emptyMap()
+        val versions = catalog.getTable("versions")?.toVersionDefinitionMap() ?: emptyMap()
         val libraries = catalog.getTable("libraries")?.toDependencyMap() ?: emptyMap()
         val bundles = catalog.getTable("bundles")?.toTypedMap<List<String>>() ?: emptyMap()
         val plugins = catalog.getTable("plugins")?.toPluginDependencyMap() ?: emptyMap()
@@ -98,6 +98,16 @@ private fun Map<String, Any>.toDependencyMap(): Map<String, Library> = toTypedMa
             }
         }
         else -> throw IllegalStateException("Unsupported type ${value::class.java}")
+    }
+}
+
+private fun Map<String, Any>.toVersionDefinitionMap(): Map<String, VersionDefinition> {
+    return mapValues {
+        when (val version = it.value.toDependencyVersion()) {
+            null -> throw IllegalStateException("Unable to parse version ${it.value}")
+            is VersionDefinition.Reference -> throw IllegalStateException("Version specified cannot be a reference")
+            else -> version
+        }
     }
 }
 

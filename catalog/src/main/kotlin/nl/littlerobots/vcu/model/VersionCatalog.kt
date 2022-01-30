@@ -18,11 +18,27 @@ package nl.littlerobots.vcu.model
 import nl.littlerobots.vcu.toml.toTomlKey
 
 data class VersionCatalog(
-    val versions: Map<String, String>,
+    val versions: Map<String, VersionDefinition>,
     val libraries: Map<String, Library>,
     val bundles: Map<String, List<String>>,
     val plugins: Map<String, Plugin>
-)
+) {
+    /**
+     * The effective version definition of a [HasVersion], resolving [VersionDefinition.Reference]
+     */
+    internal val HasVersion.resolvedVersion: VersionDefinition
+        get() {
+            if (versions.isEmpty()) {
+                return version
+            }
+            val version = version
+            return if (version is VersionDefinition.Reference) {
+                versions[version.ref] ?: error("$this references undeclared version: ${version.ref}")
+            } else {
+                version
+            }
+        }
+}
 
 /**
  * Create an updated [VersionCatalog] by combining with [catalog]
@@ -41,10 +57,17 @@ fun VersionCatalog.updateFrom(
     val updatedLibraries = catalog.libraries.mapNotNull { entry ->
         libraryKeys[entry.value.module]?.let {
             val currentLib = this.libraries[it]!!
-            if (currentLib.version == VersionDefinition.Unspecified) {
-                it to entry.value.copy(version = VersionDefinition.Unspecified)
-            } else {
-                it to entry.value
+            when (currentLib.resolvedVersion) {
+                VersionDefinition.Unspecified -> {
+                    it to entry.value.copy(version = VersionDefinition.Unspecified)
+                }
+                is VersionDefinition.Condition -> {
+                    // keep the version condition
+                    it to entry.value.copy(version = currentLib.version)
+                }
+                else -> {
+                    it to entry.value
+                }
             }
         } ?: if (addNew) (entry.key to entry.value) else null
     }.toMap()
@@ -52,11 +75,11 @@ fun VersionCatalog.updateFrom(
     val libraries = this.libraries.toMutableMap().apply {
         putAll(updatedLibraries)
         if (purge) {
-            val modules = catalog.libraries.map { it.value.module }
+            val modules = catalog.libraries.map { it.value.module }.toSet()
             val purgeKeys = libraryKeys.toMutableMap().apply {
                 keys.removeAll(modules)
             }
-            keys.removeAll(purgeKeys.values)
+            keys.removeAll(purgeKeys.values.toSet())
         }
     }
 
@@ -67,7 +90,12 @@ fun VersionCatalog.updateFrom(
     // for plugins find the id in the current map
     val pluginUpdates = catalog.plugins.mapNotNull { entry ->
         pluginKeys[entry.value.id]?.let {
-            it to entry.value
+            val currentPlugin = requireNotNull(plugins[it])
+            when (currentPlugin.resolvedVersion) {
+                // keep condition reference
+                is VersionDefinition.Condition -> it to currentPlugin
+                else -> it to entry.value
+            }
         } ?: if (addNew) entry.key to entry.value else null
     }.toMap()
 
@@ -98,7 +126,7 @@ fun VersionCatalog.updateFrom(
 }
 
 private fun VersionCatalog.retainCurrentVersionReferences(
-    newVersions: MutableMap<String, String>,
+    newVersions: MutableMap<String, VersionDefinition>,
     newLibraries: MutableMap<String, Library>,
     newPlugins: MutableMap<String, Plugin>
 ) {
@@ -127,7 +155,7 @@ private fun VersionCatalog.retainCurrentVersionReferences(
         }.filter {
             it.entry.version is VersionDefinition.Simple
         }.groupBy {
-            (it.entry.version as VersionDefinition.Simple).version
+            (it.entry.version as VersionDefinition.Simple)
         }.maxByOrNull {
             it.value.size
         }
@@ -182,7 +210,7 @@ fun VersionCatalog.mapPlugins(
 
 private fun VersionCatalog.collectVersionReferenceForGroups(
     libraries: MutableMap<String, Library>,
-    versions: MutableMap<String, String>
+    versions: MutableMap<String, VersionDefinition>
 ) {
     val groupIdVersionRef = this.libraries.values.filter {
         it.version is VersionDefinition.Reference
@@ -210,7 +238,7 @@ private fun VersionCatalog.collectVersionReferenceForGroups(
             else -> existing
         }
         reference?.let { ref ->
-            versions[ref] = (entry.value.first().version as VersionDefinition.Simple).version
+            versions[ref] = (entry.value.first().version as VersionDefinition.Simple)
             for (lib in entry.value) {
                 val libEntry = libraries.entries.first { it.value == lib }
                 libraries[libEntry.key] = lib.copy(version = VersionDefinition.Reference(ref))
@@ -235,7 +263,7 @@ internal fun VersionCatalog.pruneVersions(): VersionCatalog {
     }.distinct()
 
     val versions = this.versions.toMutableMap().apply {
-        keys.retainAll(versionReferences)
+        keys.retainAll(versionReferences.toSet())
     }
     return copy(versions = versions)
 }
