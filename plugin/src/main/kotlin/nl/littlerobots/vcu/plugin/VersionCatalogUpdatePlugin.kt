@@ -37,24 +37,30 @@ class VersionCatalogUpdatePlugin : Plugin<Project> {
             throw IllegalStateException("Should be applied to the root project only")
         }
 
-        project.extensions.create(EXTENSION_NAME, VersionCatalogUpdateExtension::class.java)
+        val extension = project.extensions.create(EXTENSION_NAME, VersionCatalogUpdateExtension::class.java)
 
         // TODO see if we can configure the output format in other ways or if this is fine
         System.setProperty("outputFormatter", "json,xml,plain")
 
         val reportJson = project.objects.fileProperty()
 
-        val catalogUpdatesTask = project.tasks.register(TASK_NAME, VersionCatalogUpdateTask::class.java) {
-            it.reportJson.set(reportJson)
-            if (!it.catalogFile.isPresent) {
-                it.catalogFile.set(project.rootProject.file("gradle/libs.versions.toml"))
+        val catalogUpdatesTask = project.tasks.register(TASK_NAME, VersionCatalogUpdateTask::class.java, extension)
+
+        catalogUpdatesTask.configure { task ->
+            task.reportJson.set(reportJson)
+            task.pins.set(project.objects.newInstance(PinsConfigurationInput::class.java, extension.pins))
+            task.keep.set(project.objects.newInstance(KeepConfigurationInput::class.java, extension.keep))
+
+            if (!task.catalogFile.isPresent) {
+                task.catalogFile.set(project.rootProject.file("gradle/libs.versions.toml"))
             }
         }
 
         project.pluginManager.withPlugin(VERSIONS_PLUGIN_ID) {
-            val dependencyUpdatesTask = project.tasks.named(DEPENDENCY_UPDATES_TASK_NAME, DependencyUpdatesTask::class.java) {
-                reportJson.set(File(project.file(it.outputDir), "${it.reportfileName}.json"))
-            }
+            val dependencyUpdatesTask =
+                project.tasks.named(DEPENDENCY_UPDATES_TASK_NAME, DependencyUpdatesTask::class.java) {
+                    reportJson.set(File(project.file(it.outputDir), "${it.reportfileName}.json"))
+                }
             catalogUpdatesTask.configure {
                 it.dependsOn(dependencyUpdatesTask)
             }

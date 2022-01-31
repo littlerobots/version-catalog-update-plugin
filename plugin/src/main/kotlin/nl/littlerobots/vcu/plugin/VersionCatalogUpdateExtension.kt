@@ -13,15 +13,59 @@
 * See the License for the specific language governing permissions and
 * limitations under the License.
 */
+@file:Suppress("UnstableApiUsage")
+
 package nl.littlerobots.vcu.plugin
 
+import org.gradle.api.Action
 import org.gradle.api.Project
+import org.gradle.api.artifacts.MinimalExternalModuleDependency
+import org.gradle.api.artifacts.ModuleIdentifier
+import org.gradle.api.provider.Property
+import org.gradle.api.provider.Provider
+import org.gradle.api.provider.SetProperty
+import org.gradle.api.tasks.Nested
+import org.gradle.plugin.use.PluginDependency
+import java.io.Serializable
 
 abstract class VersionCatalogUpdateExtension {
     var sortByKey: Boolean = true
-    var addDependencies: Boolean = false
-    var keepUnused: Boolean = false
+
+    @get:Nested
+    abstract val pins: PinConfiguration
+
+    @get:Nested
+    abstract val keep: KeepConfiguration
+
+    fun pin(action: Action<PinConfiguration>) {
+        action.execute(pins)
+    }
+
+    fun keep(action: Action<KeepConfiguration>) {
+        action.execute(keep)
+    }
 }
+
+@Suppress("LeakingThis")
+abstract class VersionRefConfiguration : Serializable {
+    abstract val versions: SetProperty<String>
+    abstract val libraries: SetProperty<Provider<MinimalExternalModuleDependency>>
+    abstract val plugins: SetProperty<Provider<PluginDependency>>
+    abstract val groups: SetProperty<String>
+}
+
+abstract class PinConfiguration : VersionRefConfiguration()
+abstract class KeepConfiguration : VersionRefConfiguration() {
+    abstract val keepUnusedVersions: Property<Boolean>
+    abstract val keepUnusedLibraries: Property<Boolean>
+    abstract val keepUnusedPlugins: Property<Boolean>
+}
+
+internal sealed class VersionCatalogRef
+internal data class VersionRef(val versionName: String) : VersionCatalogRef()
+internal data class LibraryRef(val dependency: ModuleIdentifier) : VersionCatalogRef()
+internal data class PluginRef(val pluginId: String) : VersionCatalogRef()
+internal data class GroupRef(val group: String) : VersionCatalogRef()
 
 fun Project.versionCatalogUpdate(block: VersionCatalogUpdateExtension.() -> Unit) {
     extensions.configure(VersionCatalogUpdateExtension::class.java, block)

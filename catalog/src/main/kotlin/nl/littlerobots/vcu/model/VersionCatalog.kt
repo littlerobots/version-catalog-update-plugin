@@ -281,6 +281,20 @@ internal fun VersionCatalog.updateBundles(): VersionCatalog {
     )
 }
 
+fun VersionCatalog.resolveVersions(): VersionCatalog {
+    if (this.versions.isEmpty()) {
+        return this
+    }
+    return copy(
+        libraries = libraries.mapValues {
+            it.value.copy(version = it.value.resolvedVersion)
+        },
+        plugins = plugins.mapValues {
+            it.value.copy(version = it.value.resolvedVersion)
+        }
+    )
+}
+
 private data class Key<T : HasVersion>(
     val key: String,
     val entry: T

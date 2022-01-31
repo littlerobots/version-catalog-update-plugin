@@ -17,10 +17,13 @@ package nl.littlerobots.vcu.plugin
 
 import nl.littlerobots.vcu.VersionCatalogParser
 import nl.littlerobots.vcu.VersionCatalogWriter
+import nl.littlerobots.vcu.model.Library
+import nl.littlerobots.vcu.model.Plugin
 import nl.littlerobots.vcu.model.VersionCatalog
 import nl.littlerobots.vcu.model.VersionDefinition
 import nl.littlerobots.vcu.model.mapPlugins
 import nl.littlerobots.vcu.model.resolveSimpleVersionReference
+import nl.littlerobots.vcu.model.resolveVersions
 import nl.littlerobots.vcu.model.resolvedVersion
 import nl.littlerobots.vcu.model.sortKeys
 import nl.littlerobots.vcu.model.updateFrom
@@ -29,9 +32,11 @@ import nl.littlerobots.vcu.versions.model.Dependency
 import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
 import org.gradle.api.Project
+import org.gradle.api.artifacts.ModuleIdentifier
 import org.gradle.api.artifacts.ResolvedArtifact
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.Property
+import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputFile
 import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.Optional
@@ -41,10 +46,14 @@ import org.gradle.api.tasks.options.Option
 import org.gradle.internal.component.external.model.ModuleComponentArtifactIdentifier
 import java.io.File
 import java.util.jar.JarFile
+import javax.inject.Inject
 
 private const val PROPERTIES_SUFFIX = ".properties"
 
-abstract class VersionCatalogUpdateTask : DefaultTask() {
+abstract class VersionCatalogUpdateTask @Inject constructor(
+    private val extension: VersionCatalogUpdateExtension
+) :
+    DefaultTask() {
     @get:InputFile
     abstract val reportJson: RegularFileProperty
 
@@ -56,26 +65,30 @@ abstract class VersionCatalogUpdateTask : DefaultTask() {
     @get:Internal
     abstract var createCatalog: Boolean
 
-    private var keepUnusedDependencies: Boolean? = null
-    private var addDependencies: Boolean? = null
+    @get:Input
+    abstract val pins: Property<PinsConfigurationInput>
 
-    @Option(option = "keep-unused", description = "Keep unused dependencies in the toml file")
-    fun setKeepUnusedDependenciesOption(keep: Boolean) {
-        this.keepUnusedDependencies = keep
-    }
+    // @get:Input
+    @get:Internal
+    abstract val keep: Property<KeepConfigurationInput>
+
+    private var addDependencies: Boolean? = null
 
     @Option(option = "add", description = "Add new dependencies in the toml file")
     fun setAddDependenciesOption(add: Boolean) {
         this.addDependencies = add
     }
 
+    private val pinRefs by lazy {
+        pins.orNull?.getVersionCatalogRefs() ?: emptySet()
+    }
+
+    private val keepRefs by lazy {
+        keep.orNull?.getVersionCatalogRefs() ?: emptySet()
+    }
+
     @TaskAction
     fun updateCatalog() {
-        val extension = project.extensions.getByType(VersionCatalogUpdateExtension::class.java)
-
-        val addDependencies = addDependencies ?: extension.addDependencies
-        val keepUnused = keepUnusedDependencies ?: extension.keepUnused
-
         val reportParser = VersionReportParser()
 
         val versionsReportResult =
@@ -96,17 +109,33 @@ abstract class VersionCatalogUpdateTask : DefaultTask() {
             }
         }
 
+        val pins = getPins(currentCatalog, pinRefs)
+
+        val catalogWithResolvedPlugins = resolvePluginIds(
+            getResolvedBuildScriptArtifacts(project),
+            catalogFromDependencies
+        )
+
         val updatedCatalog = currentCatalog.updateFrom(
-            resolvePluginIds(getResolvedBuildScriptArtifacts(project), catalogFromDependencies),
-            addNew = addDependencies || createCatalog,
-            purge = !keepUnused
-        ).let {
-            if (extension.sortByKey) {
-                it.sortKeys()
-            } else {
-                it
+            catalog = catalogWithResolvedPlugins
+                .withPins(pins)
+                .withKeptReferences(
+                    currentCatalog = currentCatalog,
+                    refs = keepRefs,
+                    keepUnusedLibraries = keep.orNull?.keepUnusedLibraries?.getOrElse(false) ?: false,
+                    keepUnusedPlugins = keep.orNull?.keepUnusedPlugins?.getOrElse(false) ?: false,
+                ),
+            addNew = (addDependencies ?: false) || createCatalog,
+            purge = true
+        ).withKeepUnusedVersions(currentCatalog, keep.orNull?.keepUnusedVersions?.getOrElse(false) ?: false)
+            .withKeptVersions(currentCatalog, keepRefs)
+            .let {
+                if (extension.sortByKey) {
+                    it.sortKeys()
+                } else {
+                    it
+                }
             }
-        }
 
         val writer = VersionCatalogWriter()
         writer.write(updatedCatalog, catalogFile.get().writer())
@@ -116,6 +145,45 @@ abstract class VersionCatalogUpdateTask : DefaultTask() {
         }
 
         checkForUpdatesForLibrariesWithVersionCondition(updatedCatalog, versionsReportResult.outdated)
+        checkForUpdatesToPins(updatedCatalog, catalogWithResolvedPlugins, pins)
+    }
+
+    /**
+     * Emit a warning when there are updates for pinned libraries and plugins
+     * @param updatedCatalog the updated catalog
+     * @param catalogWithResolvedPlugins the catalog with the latest updates
+     * @param pins the pins
+     */
+    private fun checkForUpdatesToPins(
+        updatedCatalog: VersionCatalog,
+        catalogWithResolvedPlugins: VersionCatalog,
+        pins: Pins
+    ) {
+        val resolvedVersions = updatedCatalog.resolveVersions()
+
+        val appliedPins = pins.libraries.filter { pin ->
+            resolvedVersions.libraries.values.any {
+                it.group == pin.group
+            }
+        }.map { lib ->
+            lib to catalogWithResolvedPlugins.libraries.entries.first {
+                it.value.group == lib.group
+            }
+        }.filter {
+            it.first.version != it.second.value.version && it.first.version is VersionDefinition.Simple
+        }
+
+        if (appliedPins.isNotEmpty()) {
+            project.logger.warn(
+                "There are updates available for pinned entries in the version catalog:"
+            )
+            for (pin in appliedPins) {
+                val message = " - ${pin.first.module} (${pin.second.key}) " +
+                    "${(pin.first.version as VersionDefinition.Simple).version} -> " +
+                    (pin.second.value.version as VersionDefinition.Simple).version
+                project.logger.warn(message)
+            }
+        }
     }
 
     private fun checkForUpdatesForLibrariesWithVersionCondition(catalog: VersionCatalog, outdated: Set<Dependency>) {
@@ -245,5 +313,231 @@ abstract class VersionCatalogUpdateTask : DefaultTask() {
             }
         }
         return ids
+    }
+
+    @Suppress("UnstableApiUsage")
+    private fun getPins(currentCatalog: VersionCatalog, pins: Set<VersionCatalogRef>): Pins {
+        val pinsByType = pins.groupBy { it::class }
+
+        val versionPinned = pinsByType.getOrDefault(VersionRef::class, emptyList())
+            .filterIsInstance<VersionRef>()
+            .map {
+                VersionDefinition.Reference(it.versionName)
+            }
+
+        val versionPinnedLibs = versionPinned.flatMap { version ->
+            currentCatalog.libraries.values.filter { library ->
+                library.version == version
+            }
+        }
+
+        val versionPinnedPlugins = versionPinned.flatMap { version ->
+            currentCatalog.plugins.values.filter { plugin ->
+                plugin.version == version
+            }
+        }
+
+        val libraryPinned = pinsByType.getOrDefault(LibraryRef::class, emptyList())
+            .filterIsInstance<LibraryRef>()
+            .map {
+                it.dependency
+            }
+            .flatMap { pin ->
+                currentCatalog.libraries.values.filter { it.module == "${pin.group}:${pin.name}" }
+            }
+
+        val pluginsPinned = pinsByType.getOrDefault(PluginRef::class, emptyList())
+            .filterIsInstance<PluginRef>()
+            .map {
+                it.pluginId
+            }
+            .flatMap { pin ->
+                currentCatalog.plugins.values.filter { it.id == pin }
+            }
+
+        val groupsPinned = pinsByType.getOrDefault(GroupRef::class, emptyList())
+            .filterIsInstance<GroupRef>()
+            .flatMap { pin ->
+                currentCatalog.libraries.values.filter { it.group == pin.group }
+            }
+
+        return Pins(
+            libraries = (versionPinnedLibs.toSet() + libraryPinned.toSet() + groupsPinned.toSet()).map {
+                it.copy(version = it.resolvedVersion(currentCatalog))
+            }.toSet(),
+            plugins = (versionPinnedPlugins.toSet() + pluginsPinned.toSet()).map {
+                it.copy(version = it.resolvedVersion(currentCatalog))
+            }.toSet()
+        )
+    }
+}
+
+private data class Pins(val libraries: Set<Library>, val plugins: Set<Plugin>)
+
+private fun VersionCatalog.withKeptReferences(
+    currentCatalog: VersionCatalog,
+    refs: Set<VersionCatalogRef>,
+    keepUnusedLibraries: Boolean,
+    keepUnusedPlugins: Boolean
+): VersionCatalog {
+    val refsByType =
+        refs.let {
+            if (keepUnusedLibraries) it.addAllLibraries(currentCatalog) else it
+        }.let {
+            if (keepUnusedPlugins) it.addAllPlugins(currentCatalog) else it
+        }.groupBy { it::class }
+
+    val keptLibraries = currentCatalog.libraries.entries.filter { entry ->
+        refsByType.getOrDefault(GroupRef::class, emptyList())
+            .filterIsInstance<GroupRef>().any {
+                it.group == entry.value.group
+            } || refsByType.getOrDefault(LibraryRef::class, emptyList())
+            .filterIsInstance<LibraryRef>()
+            .map {
+                it.dependency
+            }
+            .any {
+                "${it.group}:${it.name}" == entry.value.module
+            }
+    }.filter { entry ->
+        !libraries.values.any {
+            it.module == entry.value.module
+        }
+    }.associate {
+        it.key to it.value
+    }
+
+    // plugins to keep that are not in this (update) catalog
+    val keptPlugins = currentCatalog.plugins.entries.filter { entry ->
+        refsByType.getOrDefault(PluginRef::class, emptyList())
+            .filterIsInstance<PluginRef>()
+            .map {
+                it.pluginId
+            }
+            .any {
+                it == entry.value.id
+            }
+    }.filter { entry ->
+        !plugins.values.any {
+            it.id == entry.value.id
+        }
+    }.associate {
+        it.key to it.value
+    }
+
+    return copy(libraries = this.libraries + keptLibraries, plugins = this.plugins + keptPlugins)
+}
+
+private fun VersionCatalog.withKeepUnusedVersions(currentCatalog: VersionCatalog, keep: Boolean): VersionCatalog {
+    if (!keep) {
+        return this
+    }
+    val removedVersions = currentCatalog.versions.entries.filter {
+        !versions.containsKey(it.key)
+    }.associate { it.key to it.value }
+    return copy(versions = versions + removedVersions)
+}
+
+private fun VersionCatalog.withKeepUnusedLibraries(currentCatalog: VersionCatalog, keep: Boolean): VersionCatalog {
+    if (!keep) {
+        return this
+    }
+    val removedLibraries = currentCatalog.libraries.entries.filter { entry ->
+        !libraries.values.any { it.module == entry.value.module }
+    }.associate { it.key to it.value }
+
+    return copy(libraries = libraries + removedLibraries)
+}
+
+private fun VersionCatalog.withKeepUnusedPlugins(currentCatalog: VersionCatalog, keep: Boolean): VersionCatalog {
+    if (!keep) {
+        return this
+    }
+    val removedPlugins = currentCatalog.plugins.entries.filter { entry ->
+        !plugins.values.any { it.id == entry.value.id }
+    }.associate { it.key to it.value }
+
+    return copy(plugins = plugins + removedPlugins)
+}
+
+private fun VersionCatalog.withKeptVersions(
+    currentCatalog: VersionCatalog,
+    refs: Set<VersionCatalogRef>
+): VersionCatalog {
+    val keptVersions = refs.filterIsInstance<VersionRef>().filter {
+        currentCatalog.versions.containsKey(it.versionName) && !versions.containsKey(it.versionName)
+    }.mapNotNull { ref ->
+        currentCatalog.versions[ref.versionName]?.let {
+            ref.versionName to it
+        }
+    }.toMap()
+    return copy(versions = versions + keptVersions)
+}
+
+private fun VersionCatalog.withPins(pins: Pins): VersionCatalog {
+    // pins that actually exist in ths catalog
+    val validLibraryPins = pins.libraries.filter { library ->
+        libraries.values.any {
+            it.module == library.module
+        }
+    }
+
+    val validPluginPins = pins.plugins.filter { plugin ->
+        plugins.values.any {
+            it.id == plugin.id
+        }
+    }
+
+    return copy(
+        libraries = libraries.toMutableMap().apply {
+            removeLibraries(validLibraryPins)
+            putAll(
+                validLibraryPins.map {
+                    // not a valid toml key, but only used for merging catalogs + existing entries
+                    // so this should be ok
+                    it.module to it
+                }
+            )
+        },
+        plugins = plugins.toMutableMap().apply {
+            removePlugins(validPluginPins)
+            putAll(
+                validPluginPins.map {
+                    it.id to it
+                }
+            )
+        }
+    )
+}
+
+private fun Set<VersionCatalogRef>.addAllLibraries(versionCatalog: VersionCatalog): Set<VersionCatalogRef> {
+    return this + versionCatalog.libraries.map {
+        LibraryRef(object : ModuleIdentifier {
+            override fun getGroup(): String = it.value.group
+
+            override fun getName(): String = it.value.name
+        })
+    }
+}
+
+private fun Set<VersionCatalogRef>.addAllPlugins(versionCatalog: VersionCatalog): Set<VersionCatalogRef> {
+    return this + versionCatalog.plugins.map {
+        PluginRef(it.value.id)
+    }
+}
+
+private fun MutableMap<String, Plugin>.removePlugins(plugins: Collection<Plugin>) {
+    values.removeIf { plugin ->
+        plugins.any {
+            it.id == plugin.id
+        }
+    }
+}
+
+private fun MutableMap<String, Library>.removeLibraries(libs: Collection<Library>) {
+    values.removeIf { lib ->
+        libs.any {
+            it.module == lib.module
+        }
     }
 }
