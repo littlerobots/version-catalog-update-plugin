@@ -38,9 +38,11 @@ abstract class VersionCatalogUpdateExtension {
     abstract val keep: KeepConfiguration
 
     abstract val acceptVersionIf: Property<(candidate: String, current: String) -> Boolean>
+    abstract val catalogPath: Property<String>
 
     init {
         acceptVersionIf.convention { _, _ -> true }
+        catalogPath.convention("gradle/libs.versions.toml")
     }
 
     fun pin(action: Action<PinConfiguration>) {
