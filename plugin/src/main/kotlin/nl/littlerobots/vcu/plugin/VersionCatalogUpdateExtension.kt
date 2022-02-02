@@ -37,6 +37,12 @@ abstract class VersionCatalogUpdateExtension {
     @get:Nested
     abstract val keep: KeepConfiguration
 
+    abstract val acceptVersionIf: Property<(candidate: String, current: String) -> Boolean>
+
+    init {
+        acceptVersionIf.convention { _, _ -> true }
+    }
+
     fun pin(action: Action<PinConfiguration>) {
         action.execute(pins)
     }

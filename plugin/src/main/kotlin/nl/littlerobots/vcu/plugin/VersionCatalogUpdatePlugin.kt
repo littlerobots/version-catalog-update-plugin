@@ -61,6 +61,13 @@ class VersionCatalogUpdatePlugin : Plugin<Project> {
                 project.tasks.named(DEPENDENCY_UPDATES_TASK_NAME, DependencyUpdatesTask::class.java) {
                     reportJson.set(File(project.file(it.outputDir), "${it.reportfileName}.json"))
                 }
+            dependencyUpdatesTask.configure { task ->
+                val conditionFun =
+                    project.extensions.getByType(VersionCatalogUpdateExtension::class.java).acceptVersionIf.get()
+                task.rejectVersionIf {
+                    return@rejectVersionIf !conditionFun.invoke(it.candidate.version, it.currentVersion)
+                }
+            }
             catalogUpdatesTask.configure {
                 it.dependsOn(dependencyUpdatesTask)
             }
