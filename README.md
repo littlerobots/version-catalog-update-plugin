@@ -24,7 +24,7 @@ pluginManagement {
 In your `build.gradle[.kts]`:
 ```
 plugins {
-  id "com.github.ben-manes.versions" version "0.39.0"
+  id "com.github.ben-manes.versions" version "0.41.0"
   id "nl.littlerobots.version-catalog-update" version "<latest version>"
 }
 ```
