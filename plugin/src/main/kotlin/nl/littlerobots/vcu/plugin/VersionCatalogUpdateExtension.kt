@@ -21,14 +21,16 @@ import org.gradle.api.Action
 import org.gradle.api.Project
 import org.gradle.api.artifacts.MinimalExternalModuleDependency
 import org.gradle.api.artifacts.ModuleIdentifier
+import org.gradle.api.model.ObjectFactory
 import org.gradle.api.provider.Property
 import org.gradle.api.provider.Provider
 import org.gradle.api.provider.SetProperty
 import org.gradle.api.tasks.Nested
 import org.gradle.plugin.use.PluginDependency
 import java.io.Serializable
+import javax.inject.Inject
 
-abstract class VersionCatalogUpdateExtension {
+abstract class VersionCatalogUpdateExtension @Inject constructor(private val objects: ObjectFactory) {
     var sortByKey: Boolean = true
 
     @get:Nested
@@ -36,6 +38,12 @@ abstract class VersionCatalogUpdateExtension {
 
     @get:Nested
     abstract val keep: KeepConfiguration
+
+    abstract val catalogPath: SetProperty<String>
+
+    init {
+        catalogPath.convention(listOf("gradle/libs.versions.toml"))
+    }
 
     fun pin(action: Action<PinConfiguration>) {
         action.execute(pins)

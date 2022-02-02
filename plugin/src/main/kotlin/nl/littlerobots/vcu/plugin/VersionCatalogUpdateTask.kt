@@ -34,6 +34,7 @@ import org.gradle.api.GradleException
 import org.gradle.api.Project
 import org.gradle.api.artifacts.ModuleIdentifier
 import org.gradle.api.artifacts.ResolvedArtifact
+import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Input
@@ -41,6 +42,7 @@ import org.gradle.api.tasks.InputFile
 import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.Optional
 import org.gradle.api.tasks.OutputFile
+import org.gradle.api.tasks.OutputFiles
 import org.gradle.api.tasks.TaskAction
 import org.gradle.api.tasks.options.Option
 import org.gradle.internal.component.external.model.ModuleComponentArtifactIdentifier
@@ -57,9 +59,9 @@ abstract class VersionCatalogUpdateTask @Inject constructor(
     @get:InputFile
     abstract val reportJson: RegularFileProperty
 
-    @get:OutputFile
+    @get:OutputFiles
     @get:Optional
-    abstract val catalogFile: Property<File>
+    abstract val catalogFile: Property<ConfigurableFileCollection>
 
     @set:Option(option = "create", description = "Create libs.versions.toml based on current dependencies")
     @get:Internal
@@ -94,58 +96,61 @@ abstract class VersionCatalogUpdateTask @Inject constructor(
         val versionsReportResult =
             reportParser.generateCatalog(reportJson.get().asFile.inputStream(), useLatestVersions = !createCatalog)
         val catalogFromDependencies = versionsReportResult.catalog
+        val catalogFiles = catalogFile.get().files
 
-        val currentCatalog = if (catalogFile.get().exists()) {
-            if (createCatalog) {
-                throw GradleException("${catalogFile.get()} already exists and cannot be created from scratch.")
-            }
-            val catalogParser = VersionCatalogParser()
-            catalogParser.parse(catalogFile.get().inputStream())
-        } else {
-            if (createCatalog) {
-                VersionCatalog(emptyMap(), emptyMap(), emptyMap(), emptyMap())
+        for (file in catalogFiles) {
+            val currentCatalog = if (catalogFiles.first().exists()) {
+                if (createCatalog) {
+                    throw GradleException("${catalogFiles.first()} already exists and cannot be created from scratch.")
+                }
+                val catalogParser = VersionCatalogParser()
+                catalogParser.parse(file.inputStream())
             } else {
-                throw GradleException("${catalogFile.get()} does not exist. Did you mean to specify the --create option?")
-            }
-        }
-
-        val pins = getPins(currentCatalog, pinRefs)
-
-        val catalogWithResolvedPlugins = resolvePluginIds(
-            getResolvedBuildScriptArtifacts(project),
-            catalogFromDependencies
-        )
-
-        val updatedCatalog = currentCatalog.updateFrom(
-            catalog = catalogWithResolvedPlugins
-                .withPins(pins)
-                .withKeptReferences(
-                    currentCatalog = currentCatalog,
-                    refs = keepRefs,
-                    keepUnusedLibraries = keep.orNull?.keepUnusedLibraries?.getOrElse(false) ?: false,
-                    keepUnusedPlugins = keep.orNull?.keepUnusedPlugins?.getOrElse(false) ?: false,
-                ),
-            addNew = (addDependencies ?: false) || createCatalog,
-            purge = true
-        ).withKeepUnusedVersions(currentCatalog, keep.orNull?.keepUnusedVersions?.getOrElse(false) ?: false)
-            .withKeptVersions(currentCatalog, keepRefs)
-            .let {
-                if (extension.sortByKey) {
-                    it.sortKeys()
+                if (createCatalog) {
+                    VersionCatalog(emptyMap(), emptyMap(), emptyMap(), emptyMap())
                 } else {
-                    it
+                    throw GradleException("${catalogFiles.first()} does not exist. Did you mean to specify the --create option?")
                 }
             }
 
-        val writer = VersionCatalogWriter()
-        writer.write(updatedCatalog, catalogFile.get().writer())
+            val pins = getPins(currentCatalog, pinRefs)
 
-        if (versionsReportResult.exceeded.isNotEmpty() && !createCatalog) {
-            emitExceededWarning(versionsReportResult.exceeded, currentCatalog)
+            val catalogWithResolvedPlugins = resolvePluginIds(
+                getResolvedBuildScriptArtifacts(project),
+                catalogFromDependencies
+            )
+
+            val updatedCatalog = currentCatalog.updateFrom(
+                catalog = catalogWithResolvedPlugins
+                    .withPins(pins)
+                    .withKeptReferences(
+                        currentCatalog = currentCatalog,
+                        refs = keepRefs,
+                        keepUnusedLibraries = keep.orNull?.keepUnusedLibraries?.getOrElse(false) ?: false,
+                        keepUnusedPlugins = keep.orNull?.keepUnusedPlugins?.getOrElse(false) ?: false,
+                    ),
+                addNew = (addDependencies ?: false) || createCatalog,
+                purge = true
+            ).withKeepUnusedVersions(currentCatalog, keep.orNull?.keepUnusedVersions?.getOrElse(false) ?: false)
+                .withKeptVersions(currentCatalog, keepRefs)
+                .let {
+                    if (extension.sortByKey) {
+                        it.sortKeys()
+                    } else {
+                        it
+                    }
+                }
+
+            val writer = VersionCatalogWriter()
+            writer.write(updatedCatalog, file.writer())
+
+            if (versionsReportResult.exceeded.isNotEmpty() && !createCatalog) {
+                emitExceededWarning(versionsReportResult.exceeded, currentCatalog)
+            }
+
+            checkForUpdatesForLibrariesWithVersionCondition(updatedCatalog, versionsReportResult.outdated)
+            checkForUpdatesToPins(updatedCatalog, catalogWithResolvedPlugins, pins)
         }
-
-        checkForUpdatesForLibrariesWithVersionCondition(updatedCatalog, versionsReportResult.outdated)
-        checkForUpdatesToPins(updatedCatalog, catalogWithResolvedPlugins, pins)
     }
 
     /**

@@ -52,7 +52,7 @@ class VersionCatalogUpdatePlugin : Plugin<Project> {
             task.keep.set(project.objects.newInstance(KeepConfigurationInput::class.java, extension.keep))
 
             if (!task.catalogFile.isPresent) {
-                task.catalogFile.set(project.rootProject.file("gradle/libs.versions.toml"))
+                task.catalogFile.set(project.rootProject.files(extension.catalogPath.get()))
             }
         }
 
