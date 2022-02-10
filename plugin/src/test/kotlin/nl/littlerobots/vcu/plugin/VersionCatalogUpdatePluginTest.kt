@@ -574,7 +574,7 @@ class VersionCatalogUpdatePluginTest {
             tasks.named("versionCatalogUpdate").configure {
                 it.reportJson = file("${reportJson.name}")
             }
-            
+
             versionCatalogUpdate {
                 keep.keepUnusedPlugins.set(true)
             }
@@ -594,9 +594,10 @@ class VersionCatalogUpdatePluginTest {
                                 "name": "detekt-formatting"
                             }
                     ]
-                }            
+                }
             }
-            """.trimIndent())
+            """.trimIndent()
+        )
 
         val toml = """
                 [plugins]
@@ -606,7 +607,6 @@ class VersionCatalogUpdatePluginTest {
         File(tempDir.root, "gradle").mkdir()
         File(tempDir.root, "gradle/libs.versions.toml").writeText(toml)
 
-
         val buildResult = GradleRunner.create()
             .withProjectDir(tempDir.root)
             .withArguments("versionCatalogUpdate")
@@ -614,7 +614,7 @@ class VersionCatalogUpdatePluginTest {
             .withPluginClasspath()
             .build()
 
-        val libs = File (tempDir.root, "gradle/libs.versions.toml").readText()
+        val libs = File(tempDir.root, "gradle/libs.versions.toml").readText()
         println(buildResult.output)
 
         assertEquals(

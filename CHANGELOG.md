@@ -1,4 +1,8 @@
 # Changelog
+Version 0.3.1
+-------------
+* Support plugin declarations without a version [(#22)](https://github.com/littlerobots/version-catalog-update-plugin/issues/22)
+
 Version 0.3.0
 -------------
 * Create option now uses the current version used in the project vs the latest version [(#13)](https://github.com/littlerobots/version-catalog-update-plugin/issues/13)
