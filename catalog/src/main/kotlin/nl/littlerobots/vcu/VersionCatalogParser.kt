@@ -51,8 +51,7 @@ private fun Map<String, Any>.toPluginDependencyMap(): Map<String, Plugin> {
             }
             is Map<*, *> -> {
                 val id = value["id"] as? String
-                val version = value["version"]?.toDependencyVersion()
-                    ?: throw IllegalStateException("Could not parse version or version.ref for plugin ${entry.key}")
+                val version = value["version"]?.toDependencyVersion() ?: VersionDefinition.Unspecified
 
                 if (id == null) {
                     throw IllegalStateException("No plugin id defined for ${entry.key}")
