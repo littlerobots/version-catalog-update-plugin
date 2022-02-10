@@ -560,4 +560,70 @@ class VersionCatalogUpdatePluginTest {
         val task = project.tasks.getByName(TASK_NAME) as VersionCatalogUpdateTask
         assertNotNull(task.reportJson.orNull)
     }
+
+    @Test
+    fun `proceed plugin in catalog without version`() {
+        val reportJson = tempDir.newFile()
+
+        buildFile.writeText(
+            """
+            plugins {
+                id "nl.littlerobots.version-catalog-update"
+            }
+
+            tasks.named("versionCatalogUpdate").configure {
+                it.reportJson = file("${reportJson.name}")
+            }
+            
+            versionCatalogUpdate {
+                keep.keepUnusedPlugins.set(true)
+            }
+            """.trimIndent()
+        )
+
+        reportJson.writeText(
+            """
+            {
+                "current": {
+                    "dependencies": [
+                            {
+                                "group": "io.gitlab.arturbosch.detekt",
+                                "userReason": null,
+                                "version": "1.19.0",
+                                "projectUrl": "https://detekt.github.io/detekt",
+                                "name": "detekt-formatting"
+                            }
+                    ]
+                }            
+            }
+            """.trimIndent())
+
+        val toml = """
+                [plugins]
+                detekt = { id = "io.gitlab.arturbosch.detekt" }
+
+        """.trimIndent()
+        File(tempDir.root, "gradle").mkdir()
+        File(tempDir.root, "gradle/libs.versions.toml").writeText(toml)
+
+
+        val buildResult = GradleRunner.create()
+            .withProjectDir(tempDir.root)
+            .withArguments("versionCatalogUpdate")
+            .withDebug(true)
+            .withPluginClasspath()
+            .build()
+
+        val libs = File (tempDir.root, "gradle/libs.versions.toml").readText()
+        println(buildResult.output)
+
+        assertEquals(
+            """
+                [plugins]
+                detekt = { id = "io.gitlab.arturbosch.detekt" }
+
+            """.trimIndent(),
+            libs
+        )
+    }
 }
