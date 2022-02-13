@@ -44,12 +44,13 @@ class VersionCatalogUpdatePlugin : Plugin<Project> {
 
         val reportJson = project.objects.fileProperty()
 
-        val catalogUpdatesTask = project.tasks.register(TASK_NAME, VersionCatalogUpdateTask::class.java, extension)
+        val catalogUpdatesTask = project.tasks.register(TASK_NAME, VersionCatalogUpdateTask::class.java)
 
         catalogUpdatesTask.configure { task ->
             task.reportJson.set(reportJson)
             task.pins.set(project.objects.newInstance(PinsConfigurationInput::class.java, extension.pins))
             task.keep.set(project.objects.newInstance(KeepConfigurationInput::class.java, extension.keep))
+            task.sortByKey.set(extension.sortByKey)
 
             if (!task.catalogFile.isPresent) {
                 task.catalogFile.set(project.rootProject.file("gradle/libs.versions.toml"))

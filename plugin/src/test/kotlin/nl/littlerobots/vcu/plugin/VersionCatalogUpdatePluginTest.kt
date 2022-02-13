@@ -615,12 +615,180 @@ class VersionCatalogUpdatePluginTest {
             .build()
 
         val libs = File(tempDir.root, "gradle/libs.versions.toml").readText()
-        println(buildResult.output)
 
         assertEquals(
             """
                 [plugins]
                 detekt = { id = "io.gitlab.arturbosch.detekt" }
+
+            """.trimIndent(),
+            libs
+        )
+    }
+
+    @Test
+    fun `sortByKey set to false does not sort the toml file`() {
+        val reportJson = tempDir.newFile()
+
+        buildFile.writeText(
+            """
+            plugins {
+                id "nl.littlerobots.version-catalog-update"
+            }
+
+            tasks.named("versionCatalogUpdate").configure {
+                it.reportJson = file("${reportJson.name}")
+            }
+
+            versionCatalogUpdate {
+                keep {
+                    keepUnusedLibraries = true
+                    keepUnusedVersions = true
+                    keepUnusedPlugins = true
+                }
+                sortByKey = false
+            }
+            """.trimIndent()
+        )
+
+        val toml = """
+            [versions]
+            bbb = "1.2.3"
+            aaa = "4.5.6"
+
+            [libraries]
+            bbb = "example:library:1.0"
+            aaa = "some:library:2.0"
+
+            [bundles]
+            bbb = ["bbb"]
+            aaa = ["aaa"]
+
+            [plugins]
+            bbb = "some.id:1.2.3"
+            aaa = "another.id:1.0.0"
+
+        """.trimIndent()
+
+        reportJson.writeText(
+            """
+            {
+            }
+            """.trimIndent()
+        )
+        File(tempDir.root, "gradle").mkdir()
+        File(tempDir.root, "gradle/libs.versions.toml").writeText(toml)
+
+        GradleRunner.create()
+            .withProjectDir(tempDir.root)
+            .withArguments("versionCatalogUpdate")
+            .withDebug(true)
+            .withPluginClasspath()
+            .build()
+
+        val libs = File(tempDir.root, "gradle/libs.versions.toml").readText()
+
+        assertEquals(
+            """
+                [versions]
+                bbb = "1.2.3"
+                aaa = "4.5.6"
+
+                [libraries]
+                bbb = "example:library:1.0"
+                aaa = "some:library:2.0"
+
+                [bundles]
+                bbb = ["bbb"]
+                aaa = ["aaa"]
+
+                [plugins]
+                bbb = "some.id:1.2.3"
+                aaa = "another.id:1.0.0"
+
+            """.trimIndent(),
+            libs
+        )
+    }
+
+    @Test
+    fun `sortByKey defaults to true and sorts the toml file`() {
+        val reportJson = tempDir.newFile()
+
+        buildFile.writeText(
+            """
+            plugins {
+                id "nl.littlerobots.version-catalog-update"
+            }
+
+            tasks.named("versionCatalogUpdate").configure {
+                it.reportJson = file("${reportJson.name}")
+            }
+
+            versionCatalogUpdate {
+                keep {
+                    keepUnusedLibraries = true
+                    keepUnusedVersions = true
+                    keepUnusedPlugins = true
+                }
+            }
+            """.trimIndent()
+        )
+
+        val toml = """
+            [versions]
+            bbb = "1.2.3"
+            aaa = "4.5.6"
+
+            [libraries]
+            bbb = "example:library:1.0"
+            aaa = "some:library:2.0"
+
+            [bundles]
+            bbb = ["bbb"]
+            aaa = ["aaa"]
+
+            [plugins]
+            bbb = "some.id:1.2.3"
+            aaa = "another.id:1.0.0"
+
+        """.trimIndent()
+
+        reportJson.writeText(
+            """
+            {
+            }
+            """.trimIndent()
+        )
+        File(tempDir.root, "gradle").mkdir()
+        File(tempDir.root, "gradle/libs.versions.toml").writeText(toml)
+
+        GradleRunner.create()
+            .withProjectDir(tempDir.root)
+            .withArguments("versionCatalogUpdate")
+            .withDebug(true)
+            .withPluginClasspath()
+            .build()
+
+        val libs = File(tempDir.root, "gradle/libs.versions.toml").readText()
+
+        assertEquals(
+            """
+                [versions]
+                aaa = "4.5.6"
+                bbb = "1.2.3"
+
+                [libraries]
+                aaa = "some:library:2.0"
+                bbb = "example:library:1.0"
+
+                [bundles]
+                aaa = ["aaa"]
+                bbb = ["bbb"]
+
+                [plugins]
+                aaa = "another.id:1.0.0"
+                bbb = "some.id:1.2.3"
 
             """.trimIndent(),
             libs

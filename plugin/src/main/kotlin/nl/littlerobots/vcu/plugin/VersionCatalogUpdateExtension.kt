@@ -25,11 +25,13 @@ import org.gradle.api.provider.Property
 import org.gradle.api.provider.Provider
 import org.gradle.api.provider.SetProperty
 import org.gradle.api.tasks.Nested
+import org.gradle.api.tasks.Optional
 import org.gradle.plugin.use.PluginDependency
 import java.io.Serializable
 
 abstract class VersionCatalogUpdateExtension {
-    var sortByKey: Boolean = true
+    @get:Optional
+    abstract val sortByKey: Property<Boolean>
 
     @get:Nested
     abstract val pins: PinConfiguration

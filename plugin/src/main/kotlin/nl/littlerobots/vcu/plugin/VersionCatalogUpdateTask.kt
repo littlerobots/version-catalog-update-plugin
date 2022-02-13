@@ -50,10 +50,7 @@ import javax.inject.Inject
 
 private const val PROPERTIES_SUFFIX = ".properties"
 
-abstract class VersionCatalogUpdateTask @Inject constructor(
-    private val extension: VersionCatalogUpdateExtension
-) :
-    DefaultTask() {
+abstract class VersionCatalogUpdateTask @Inject constructor() : DefaultTask() {
     @get:InputFile
     abstract val reportJson: RegularFileProperty
 
@@ -78,6 +75,10 @@ abstract class VersionCatalogUpdateTask @Inject constructor(
     fun setAddDependenciesOption(add: Boolean) {
         this.addDependencies = add
     }
+
+    @get:Input
+    @get:Optional
+    abstract val sortByKey: Property<Boolean>
 
     private val pinRefs by lazy {
         pins.orNull?.getVersionCatalogRefs() ?: emptySet()
@@ -130,7 +131,7 @@ abstract class VersionCatalogUpdateTask @Inject constructor(
         ).withKeepUnusedVersions(currentCatalog, keep.orNull?.keepUnusedVersions?.getOrElse(false) ?: false)
             .withKeptVersions(currentCatalog, keepRefs)
             .let {
-                if (extension.sortByKey) {
+                if (sortByKey.getOrElse(true)) {
                     it.sortKeys()
                 } else {
                     it
