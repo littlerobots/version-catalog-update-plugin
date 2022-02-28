@@ -2,6 +2,7 @@
 Version 0.3.1
 -------------
 * Support plugin declarations without a version [(#22)](https://github.com/littlerobots/version-catalog-update-plugin/issues/22)
+* Change `sortByKey` to a property so it matches the docs ;)
 
 Version 0.3.0
 -------------
