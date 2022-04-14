@@ -5,7 +5,7 @@ This plugin helps to keep the versions in a Gradle [version catalog toml file](h
 The version updates are determined by the [versions plugin](https://github.com/ben-manes/gradle-versions-plugin).
 
 # Getting started
-This plugin requires Gradle 7.2 or up. Currently, [version catalogs](https://docs.gradle.org/current/userguide/platforms.html) are a Gradle incubating feature, check out the documentation on how to enable this feature.
+This plugin requires Gradle 7.2 or up. [Version catalogs](https://docs.gradle.org/current/userguide/platforms.html) are a Gradle incubating feature for versions lower than 7.4, check out the documentation on how to enable this feature for those versions.
 
 The [versions plugin](https://github.com/ben-manes/gradle-versions-plugin) needs to be applied in the root `build.gradle` or `build.gradle.kts` build file.
 
