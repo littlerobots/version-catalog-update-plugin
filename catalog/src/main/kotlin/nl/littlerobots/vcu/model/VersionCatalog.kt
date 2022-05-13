@@ -212,36 +212,35 @@ private fun VersionCatalog.collectVersionReferenceForGroups(
     libraries: MutableMap<String, Library>,
     versions: MutableMap<String, VersionDefinition>
 ) {
-    val groupIdVersionRef = this.libraries.values.filter {
-        it.version is VersionDefinition.Reference
-    }.groupBy {
-        (it.version as VersionDefinition.Reference).ref
-    }.filterValues { libs ->
-        val firstLib = libs.first()
-        libs.all { it.version == firstLib.version && it.group == firstLib.group }
-    }.map {
-        it.value.first().group to it.key
-    }.toMap()
-
-    libraries.values.filter {
-        it.version is VersionDefinition.Simple
-    }.groupBy {
-        it.group
-    }.filterValues { libs ->
-        val firstLib = libs.first()
-        // all libraries in the group have the same (simple) version
-        libs.all { it.version == firstLib.version }
-    }.forEach { entry ->
-        val existing = groupIdVersionRef[entry.key]
-        val reference = when {
-            existing == null && entry.value.size > 1 -> entry.key.replace('.', '-')
-            else -> existing
+    val librariesByGroup = libraries.values.groupBy { it.group }.filter { it.value.size > 1 }
+    val resolvedVersions = librariesByGroup.mapValues { entry ->
+        entry.value.map {
+            it.copy(version = it.resolvedVersion(copy(versions = versions)))
         }
-        reference?.let { ref ->
-            versions[ref] = (entry.value.first().version as VersionDefinition.Simple)
-            for (lib in entry.value) {
-                val libEntry = libraries.entries.first { it.value == lib }
-                libraries[libEntry.key] = lib.copy(version = VersionDefinition.Reference(ref))
+    }
+    val librariesWithoutVersionRef = libraries.filterValues {
+        it.version is VersionDefinition.Simple && librariesByGroup.containsKey(it.group)
+    }
+
+    val newVersions = mutableMapOf<String, VersionDefinition.Reference>()
+
+    for (library in librariesWithoutVersionRef) {
+        val group = resolvedVersions[library.value.group] ?: throw IllegalStateException()
+        val groupVersion = group.first().version as VersionDefinition.Simple
+        if (group.all { it.version == groupVersion } && library.value.version == groupVersion) {
+            val versionRef = librariesByGroup[library.value.group]?.firstOrNull {
+                it.version is VersionDefinition.Reference
+            }?.version as? VersionDefinition.Reference ?: newVersions[library.value.group]
+
+            if (versionRef == null) {
+                val versionRefKey = library.value.group.replace(".", "-")
+                if (versions[versionRefKey] == null) {
+                    versions[versionRefKey] = VersionDefinition.Simple(groupVersion.version)
+                    libraries[library.key] = library.value.copy(version = VersionDefinition.Reference(versionRefKey))
+                    newVersions[library.value.group] = VersionDefinition.Reference(versionRefKey)
+                } // else bail out and leave as a normal version
+            } else {
+                libraries[library.key] = library.value.copy(version = versionRef)
             }
         }
     }

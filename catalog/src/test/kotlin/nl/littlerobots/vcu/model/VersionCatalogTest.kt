@@ -19,6 +19,7 @@ import nl.littlerobots.vcu.VersionCatalogParser
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class VersionCatalogTest {
@@ -625,5 +626,126 @@ class VersionCatalogTest {
         val result = catalog.updateFrom(catalog, purge = true)
 
         assertEquals(emptyMap<String, String>(), result.versions)
+    }
+
+    @Test
+    fun `Keeps version references valid for same group artifacts with diverging versions`() {
+        val catalog = VersionCatalogParser().parse(
+            """
+            [versions]
+            groupedVersion = "1.0.0"
+
+            [libraries]
+            mylib = {module = "nl.littlerobots.test:example", version.ref = "groupedVersion" }
+            mylib2 = {module = "nl.littlerobots.test:example2", version.ref = "groupedVersion" }
+            mylib3 = {module = "nl.littlerobots.test:example3", version.ref = "groupedVersion" }
+            """.trimIndent().byteInputStream()
+        )
+
+        val update = VersionCatalogParser().parse(
+            """
+            [libraries]
+            generated-key-1 = "nl.littlerobots.test:example:2.0.0"
+            generated-key-2 = "nl.littlerobots.test:example2:3.2.0"
+            generated-key-3 = "nl.littlerobots.test:example3:2.0.0"
+            """.trimIndent().byteInputStream()
+        )
+
+        val result = catalog.updateFrom(update)
+
+        assertEquals(setOf("mylib", "mylib2", "mylib3"), result.libraries.keys)
+        val mylib = result.libraries["mylib"]!!
+        val mylib2 = result.libraries["mylib2"]!!
+        val mylib3 = result.libraries["mylib3"]!!
+
+        assertTrue(mylib.version is VersionDefinition.Reference)
+        assertTrue(mylib2.version is VersionDefinition.Simple)
+        assertTrue(mylib3.version is VersionDefinition.Reference)
+
+        assertEquals(1, result.versions.size)
+        assertEquals(VersionDefinition.Simple("2.0.0"), result.versions["groupedVersion"])
+        assertEquals("groupedVersion", (mylib.version as VersionDefinition.Reference).ref)
+        assertEquals("3.2.0", (mylib2.version as VersionDefinition.Simple).version)
+    }
+
+    @Test
+    fun `Keeps existing version references same group artifacts`() {
+        val catalog = VersionCatalogParser().parse(
+            """
+            [versions]
+            groupedVersion = "1.0.0"
+            groupedVersion2 = "2.0.0"
+
+            [libraries]
+            mylib = {module = "nl.littlerobots.test:example", version.ref = "groupedVersion" }
+            mylib2 = {module = "nl.littlerobots.test:example2", version.ref = "groupedVersion2" }
+            mylib3 = {module = "nl.littlerobots.test:example3", version.ref = "groupedVersion" }
+            """.trimIndent().byteInputStream()
+        )
+
+        val update = VersionCatalogParser().parse(
+            """
+            [libraries]
+            generated-key-1 = "nl.littlerobots.test:example:2.0.0"
+            generated-key-2 = "nl.littlerobots.test:example2:2.0.0"
+            generated-key-3 = "nl.littlerobots.test:example3:2.0.0"
+            """.trimIndent().byteInputStream()
+        )
+
+        val result = catalog.updateFrom(update)
+
+        assertEquals(setOf("mylib", "mylib2", "mylib3"), result.libraries.keys)
+        val mylib = result.libraries["mylib"]!!
+        val mylib2 = result.libraries["mylib2"]!!
+        val mylib3 = result.libraries["mylib3"]!!
+
+        assertTrue(mylib.version is VersionDefinition.Reference)
+        assertTrue(mylib2.version is VersionDefinition.Reference)
+        assertTrue(mylib3.version is VersionDefinition.Reference)
+
+        assertEquals(2, result.versions.size)
+        assertEquals(VersionDefinition.Simple("2.0.0"), result.versions["groupedVersion"])
+        assertEquals("groupedVersion", (mylib.version as VersionDefinition.Reference).ref)
+        assertEquals("groupedVersion2", (mylib2.version as VersionDefinition.Reference).ref)
+    }
+
+    @Test
+    // scenario from https://github.com/littlerobots/version-catalog-update-plugin/issues/36
+    fun `Room dependency update keeps correct version reference`() {
+        val catalog = VersionCatalogParser().parse(
+            """
+            [versions]
+            room = "2.4.2"
+            roomPaging = "2.5.0-alpha01"
+
+            [libraries]
+            roomKtx = {module = "androidx.room:room-ktx", version.ref = "room" }
+            roomPaging = {module = "androidx.room:room-paging", version.ref = "roomPaging" }
+            roomRuntime = {module = "androidx.room:room-runtime", version.ref = "room" }
+            roomCompiler = {module = "androidx.room:room-compiler", version.ref = "room" }
+            """.trimIndent().byteInputStream()
+        )
+
+        val update = VersionCatalogParser().parse(
+            """
+            [libraries]
+            generated-key-1 = "androidx.room:room-ktx:2.5.0-alpha01"
+            generated-key-2 = "androidx.room:room-paging:2.5.0-alpha01"
+            generated-key-3 = "androidx.room:room-runtime:2.5.0-alpha01"
+            generated-key-4 = "androidx.room:room-compiler:2.4.2"
+            """.trimIndent().byteInputStream()
+        )
+
+        val result = catalog.updateFrom(update)
+
+        assertEquals(2, result.versions.size)
+        // because runtime and ktx bumped versions, the "room" version is bumped
+        assertEquals(VersionDefinition.Simple("2.5.0-alpha01"), result.versions["room"])
+        assertEquals(VersionDefinition.Simple("2.5.0-alpha01"), result.versions["roomPaging"])
+        assertEquals(Library("androidx.room:room-ktx", version = VersionDefinition.Reference("room")), result.libraries["roomKtx"])
+        assertEquals(Library("androidx.room:room-paging", version = VersionDefinition.Reference("roomPaging")), result.libraries["roomPaging"])
+        assertEquals(Library("androidx.room:room-runtime", version = VersionDefinition.Reference("room")), result.libraries["roomRuntime"])
+        // room-compiler is not updated, and effectively removed from the version reference
+        assertEquals(Library("androidx.room:room-compiler", version = VersionDefinition.Simple("2.4.2")), result.libraries["roomCompiler"])
     }
 }
