@@ -794,4 +794,113 @@ class VersionCatalogUpdatePluginTest {
             libs
         )
     }
+
+    @Test
+    fun `table and key comments are retained`() {
+        val reportJson = tempDir.newFile()
+
+        buildFile.writeText(
+            """
+            plugins {
+                id "nl.littlerobots.version-catalog-update"
+            }
+
+            tasks.named("versionCatalogUpdate").configure {
+                it.reportJson = file("${reportJson.name}")
+            }
+
+            // keep everything so that we can run an empty report
+            versionCatalogUpdate {
+                keep {
+                    keepUnusedLibraries = true
+                    keepUnusedVersions = true
+                    keepUnusedPlugins = true
+                }
+            }
+            """.trimIndent()
+        )
+
+        val toml = """
+            # Versions comment
+            [versions]
+            # Version key comment
+            bbb = "1.2.3"
+            aaa = "4.5.6"
+
+            # Libraries
+            # multiline
+            # comment
+            [libraries]
+            bbb = "example:library:1.0"
+            #comment for key aaa
+            aaa = "some:library:2.0"
+
+            #Bundles comment
+            [bundles]
+            bbb = ["bbb"]
+            #For key aaa
+            aaa = ["aaa"]
+
+            # plugins table comment
+            [plugins]
+            # plugin bbb
+            bbb = "some.id:1.2.3"
+            # plugin aaa
+            #
+            aaa = "another.id:1.0.0"
+
+        """.trimIndent()
+
+        reportJson.writeText(
+            """
+            {
+            }
+            """.trimIndent()
+        )
+        File(tempDir.root, "gradle").mkdir()
+        File(tempDir.root, "gradle/libs.versions.toml").writeText(toml)
+
+        GradleRunner.create()
+            .withProjectDir(tempDir.root)
+            .withArguments("versionCatalogUpdate")
+            .withDebug(true)
+            .withPluginClasspath()
+            .build()
+
+        val libs = File(tempDir.root, "gradle/libs.versions.toml").readText()
+
+        assertEquals(
+            """
+            # Versions comment
+            [versions]
+            aaa = "4.5.6"
+            # Version key comment
+            bbb = "1.2.3"
+
+            # Libraries
+            # multiline
+            # comment
+            [libraries]
+            #comment for key aaa
+            aaa = "some:library:2.0"
+            bbb = "example:library:1.0"
+
+            #Bundles comment
+            [bundles]
+            #For key aaa
+            aaa = ["aaa"]
+            bbb = ["bbb"]
+
+            # plugins table comment
+            [plugins]
+            # plugin aaa
+            #
+            aaa = "another.id:1.0.0"
+            # plugin bbb
+            bbb = "some.id:1.2.3"
+
+            """.trimIndent(),
+            libs
+        )
+    }
 }

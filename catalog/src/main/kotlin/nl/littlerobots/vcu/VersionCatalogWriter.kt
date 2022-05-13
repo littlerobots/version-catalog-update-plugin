@@ -26,8 +26,14 @@ class VersionCatalogWriter {
     fun write(versionCatalog: VersionCatalog, writer: Writer) {
         val printWriter = PrintWriter(writer)
         if (versionCatalog.versions.isNotEmpty()) {
+            for (line in versionCatalog.versionComments.tableComments) {
+                printWriter.println(line)
+            }
             printWriter.println("[versions]")
             for (version in versionCatalog.versions) {
+                for (comment in versionCatalog.versionComments.getCommentsForKey(version.key)) {
+                    printWriter.println(comment)
+                }
                 printWriter.println("""${version.key} = ${formatVersion(version.value)}""")
             }
         }
@@ -35,8 +41,14 @@ class VersionCatalogWriter {
             if (versionCatalog.versions.isNotEmpty()) {
                 printWriter.println()
             }
+            for (line in versionCatalog.libraryComments.tableComments) {
+                printWriter.println(line)
+            }
             printWriter.println("[libraries]")
             for (library in versionCatalog.libraries) {
+                for (comment in versionCatalog.libraryComments.getCommentsForKey(library.key)) {
+                    printWriter.println(comment)
+                }
                 printWriter.println("""${library.key} = ${formatLibrary(library.value)}""")
             }
         }
@@ -44,8 +56,14 @@ class VersionCatalogWriter {
             if (versionCatalog.versions.isNotEmpty() || versionCatalog.libraries.isNotEmpty()) {
                 printWriter.println()
             }
+            for (comment in versionCatalog.bundleComments.tableComments) {
+                printWriter.println(comment)
+            }
             printWriter.println("[bundles]")
             for (bundle in versionCatalog.bundles) {
+                for (comment in versionCatalog.bundleComments.getCommentsForKey(bundle.key)) {
+                    printWriter.println(comment)
+                }
                 printWriter.println(
                     "${bundle.key} = [${
                     bundle.value.joinToString(
@@ -59,8 +77,14 @@ class VersionCatalogWriter {
             if (versionCatalog.versions.isNotEmpty() || versionCatalog.bundles.isNotEmpty() || versionCatalog.libraries.isNotEmpty()) {
                 printWriter.println()
             }
+            for (comment in versionCatalog.pluginComments.tableComments) {
+                printWriter.println(comment)
+            }
             printWriter.println("[plugins]")
             for (plugin in versionCatalog.plugins) {
+                for (comment in versionCatalog.pluginComments.getCommentsForKey(plugin.key)) {
+                    printWriter.println(comment)
+                }
                 printWriter.println("${plugin.key} = ${formatPlugin(plugin.value)}")
             }
         }

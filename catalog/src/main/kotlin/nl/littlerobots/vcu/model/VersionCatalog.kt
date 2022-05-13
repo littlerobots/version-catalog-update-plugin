@@ -21,7 +21,11 @@ data class VersionCatalog(
     val versions: Map<String, VersionDefinition>,
     val libraries: Map<String, Library>,
     val bundles: Map<String, List<String>>,
-    val plugins: Map<String, Plugin>
+    val plugins: Map<String, Plugin>,
+    val versionComments: Comments = Comments(),
+    val libraryComments: Comments = Comments(),
+    val bundleComments: Comments = Comments(),
+    val pluginComments: Comments = Comments(),
 ) {
     /**
      * The effective version definition of a [HasVersion], resolving [VersionDefinition.Reference]
@@ -38,6 +42,13 @@ data class VersionCatalog(
                 version
             }
         }
+}
+
+data class Comments(
+    val tableComments: List<String> = emptyList(),
+    val entryComments: Map<String, List<String>> = emptyMap()
+) {
+    fun getCommentsForKey(key: String) = entryComments[key] ?: emptyList()
 }
 
 /**
