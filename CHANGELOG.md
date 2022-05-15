@@ -1,4 +1,11 @@
 # Changelog
+
+Version 0.4.0
+-------------
+* Retain comments in TOML file (with some limitations) [(#18)](https://github.com/littlerobots/version-catalog-update-plugin/issues/18)
+* Use `@pin` or `@keep` in a comment to pin/keep specific entries
+* Fixed: Adding dependencies to a version could lead to invalid definitions or update version references in unexpected ways [(#36)](https://github.com/littlerobots/version-catalog-update-plugin/issues/36)
+
 Version 0.3.1
 -------------
 * Support plugin declarations without a version [(#22)](https://github.com/littlerobots/version-catalog-update-plugin/issues/22)

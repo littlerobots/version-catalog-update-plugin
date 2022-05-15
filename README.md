@@ -133,6 +133,8 @@ versionCatalogUpdate {
     }
     keep {
         // keep has the same options as pin to keep specific entries
+        // note that for versions it will ONLY keep the specified version, not all
+        // entries that reference it.
         versions = ["my-version-name", "other-version"]
         libraries = [libs.my.library.reference, libs.my.other.library.reference]
         plugins = [libs.plugins.my.plugin, libs.plugins.my.other.plugin]
@@ -194,6 +196,24 @@ versionCatalogUpdate {
 ```
 
 </details>
+
+### Keeping and pinning entries with a TOML comment
+To keep an entry in the TOML file, or pin it to a specific version you can also use annotations in TOML comments.
+This functions in the same way as specifying the `keep` and `pin` configuration in the build file.
+For a `@keep` or `@pin` annotation to be recognised, the comment must start with a single `#`.
+
+```toml
+[versions]
+# @keep this version, for example because it is not used in a dependency declaration
+minSdk = "21"
+# Pinning the version will keep every library using this version on 1.6.10
+# @pin
+kotlin = "1.6.10"
+
+[libraries]
+# @pin this library to version 1.0
+my-library = "com.example.library:1.0"
+```
 
 In addition, you can add new dependencies using `./gradlew versionCatalogUpdate --add`. Note that this will probably also add dependencies that
 are not directly declared in your build files, such as internal dependencies or dependencies added by plugins, so generally it is adviced to use this option with care.
