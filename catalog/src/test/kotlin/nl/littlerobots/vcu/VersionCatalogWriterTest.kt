@@ -231,4 +231,57 @@ class VersionCatalogWriterTest {
             writer.toString()
         )
     }
+
+    @Test
+    fun `writes out comments`() {
+        val catalogWriter = VersionCatalogWriter()
+        val writer = StringWriter()
+
+        val toml = """
+            [versions]
+            # version comment
+            myversion = "1.0.0"
+            #something else
+            test = "2.0"
+            # Nice comment
+            [libraries] # valid, but not retained
+            # Comment for lib
+            # Even more comments
+            lib = { module = "nl.littlerobots.test:test", version = "1.0" }
+
+            # Table comment for bundles
+            [bundles]
+            # test bundle comment
+            test = ["lib"]
+
+            # Table comment for plugins
+            [plugins]
+        """.trimIndent()
+
+        val catalog = VersionCatalogParser().parse(toml.byteInputStream())
+        catalogWriter.write(catalog, writer)
+
+        assertEquals(
+            """
+                [versions]
+                # version comment
+                myversion = "1.0.0"
+                #something else
+                test = "2.0"
+
+                # Nice comment
+                [libraries]
+                # Comment for lib
+                # Even more comments
+                lib = "nl.littlerobots.test:test:1.0"
+
+                # Table comment for bundles
+                [bundles]
+                # test bundle comment
+                test = ["lib"]
+
+            """.trimIndent(),
+            writer.toString()
+        )
+    }
 }

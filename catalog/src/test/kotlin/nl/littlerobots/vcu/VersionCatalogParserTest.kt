@@ -265,4 +265,28 @@ class VersionCatalogParserTest {
             result.libraries["lib"]!!
         )
     }
+
+    @Test
+    fun `records comments on tables and entries`() {
+        val toml = """
+            # Nice comment
+            [libraries] # valid, but not retained
+            # Comment for lib
+            # Even more comments
+            lib = { module = "nl.littlerobots.test:test" }
+
+            [bundles]
+            # test bundle comment
+            test = ["lib"]
+
+            # this is a trailing comment
+        """.trimIndent()
+
+        val parser = VersionCatalogParser()
+        val result = parser.parse(toml.byteInputStream())
+
+        assertEquals(listOf("# Nice comment"), result.libraryComments.tableComments)
+        assertEquals(listOf("# Comment for lib", "# Even more comments"), result.libraryComments.entryComments["lib"])
+        assertEquals(listOf("# test bundle comment"), result.bundleComments.entryComments["test"])
+    }
 }

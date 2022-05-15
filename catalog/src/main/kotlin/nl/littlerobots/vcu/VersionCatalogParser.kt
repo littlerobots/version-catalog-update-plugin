@@ -16,25 +16,70 @@
 package nl.littlerobots.vcu
 
 import com.fasterxml.jackson.dataformat.toml.TomlMapper
+import nl.littlerobots.vcu.model.Comments
 import nl.littlerobots.vcu.model.Library
 import nl.littlerobots.vcu.model.Plugin
 import nl.littlerobots.vcu.model.VersionCatalog
 import nl.littlerobots.vcu.model.VersionDefinition
+import java.io.BufferedReader
 import java.io.InputStream
+import java.io.StringReader
+
+private val TABLE_REGEX = Regex("\\[\\s?(versions|libraries|bundles|plugins)\\s?].*")
+private val KEY_REGEX = Regex("^(.*?)=.*")
+private const val TABLE_VERSIONS = "versions"
+private const val TABLE_LIBRARIES = "libraries"
+private const val TABLE_BUNDLES = "bundles"
+private const val TABLE_PLUGINS = "plugins"
 
 class VersionCatalogParser {
 
     @Suppress("UNCHECKED_CAST")
     fun parse(inputStream: InputStream): VersionCatalog {
+        val content = inputStream.bufferedReader().use {
+            it.readText()
+        }
         val mapper = TomlMapper()
-        val catalog = inputStream.use { mapper.readValue(it, Map::class.java) as Map<String, Any> }
+        val catalog = mapper.readValue(content, Map::class.java) as Map<String, Any>
 
-        val versions = catalog.getTable("versions")?.toVersionDefinitionMap() ?: emptyMap()
-        val libraries = catalog.getTable("libraries")?.toDependencyMap() ?: emptyMap()
-        val bundles = catalog.getTable("bundles")?.toTypedMap<List<String>>() ?: emptyMap()
-        val plugins = catalog.getTable("plugins")?.toPluginDependencyMap() ?: emptyMap()
+        val versions = catalog.getTable(TABLE_VERSIONS)?.toVersionDefinitionMap() ?: emptyMap()
+        val libraries = catalog.getTable(TABLE_LIBRARIES)?.toDependencyMap() ?: emptyMap()
+        val bundles = catalog.getTable(TABLE_BUNDLES)?.toTypedMap<List<String>>() ?: emptyMap()
+        val plugins = catalog.getTable(TABLE_PLUGINS)?.toPluginDependencyMap() ?: emptyMap()
 
-        return VersionCatalog(versions, libraries, bundles, plugins)
+        return processComments(content, VersionCatalog(versions, libraries, bundles, plugins))
+    }
+
+    private fun processComments(content: String, versionCatalog: VersionCatalog): VersionCatalog {
+        val comments = mutableMapOf<String, Comments>()
+        val currentComment = mutableListOf<String>()
+        var currentTable: String? = null
+        val reader = BufferedReader(StringReader(content))
+        do {
+            val line = reader.readLine() ?: break
+            when {
+                line.startsWith("#") -> currentComment.add(line)
+                line.trim().matches(TABLE_REGEX) -> {
+                    val table = TABLE_REGEX.find(line)!!.groupValues[1]
+                    currentTable = table
+                    comments[table] = Comments(currentComment.toList(), emptyMap())
+                    currentComment.clear()
+                }
+                line.matches(KEY_REGEX) && currentTable != null && currentComment.isNotEmpty() -> {
+                    val key = KEY_REGEX.find(line)!!.groupValues[1].trim()
+                    val currentComments = comments[currentTable] ?: error("Should have an entry")
+                    comments[currentTable] =
+                        currentComments.copy(entryComments = currentComments.entryComments + mapOf(key to currentComment.toList()))
+                    currentComment.clear()
+                }
+            }
+        } while (true)
+        return versionCatalog.copy(
+            versionComments = comments[TABLE_VERSIONS] ?: Comments(),
+            libraryComments = comments[TABLE_LIBRARIES] ?: Comments(),
+            bundleComments = comments[TABLE_BUNDLES] ?: Comments(),
+            pluginComments = comments[TABLE_PLUGINS] ?: Comments()
+        )
     }
 }
 
@@ -82,7 +127,8 @@ private fun Map<String, Any>.toDependencyMap(): Map<String, Library> = toTypedMa
             val group = value["group"] as? String
             val name = value["name"] as? String
             val version = value["version"]?.let {
-                it.toDependencyVersion() ?: throw IllegalStateException("Could not parse version or version.ref for ${entry.key}")
+                it.toDependencyVersion()
+                    ?: throw IllegalStateException("Could not parse version or version.ref for ${entry.key}")
             } ?: VersionDefinition.Unspecified
             if (module == null && (group == null || name == null)) {
                 throw IllegalStateException("${entry.key} should define module or group/name")

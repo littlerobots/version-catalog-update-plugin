@@ -794,4 +794,302 @@ class VersionCatalogUpdatePluginTest {
             libs
         )
     }
+
+    @Test
+    fun `table and key comments are retained`() {
+        val reportJson = tempDir.newFile()
+
+        buildFile.writeText(
+            """
+            plugins {
+                id "nl.littlerobots.version-catalog-update"
+            }
+
+            tasks.named("versionCatalogUpdate").configure {
+                it.reportJson = file("${reportJson.name}")
+            }
+
+            // keep everything so that we can run an empty report
+            versionCatalogUpdate {
+                keep {
+                    keepUnusedLibraries = true
+                    keepUnusedVersions = true
+                    keepUnusedPlugins = true
+                }
+            }
+            """.trimIndent()
+        )
+
+        val toml = """
+            # Versions comment
+            [versions]
+            # Version key comment
+            bbb = "1.2.3"
+            aaa = "4.5.6"
+
+            # Libraries
+            # multiline
+            # comment
+            [libraries]
+            bbb = "example:library:1.0"
+            #comment for key aaa
+            aaa = "some:library:2.0"
+
+            #Bundles comment
+            [bundles]
+            bbb = ["bbb"]
+            #For key aaa
+            aaa = ["aaa"]
+
+            # plugins table comment
+            [plugins]
+            # plugin bbb
+            bbb = "some.id:1.2.3"
+            # plugin aaa
+            #
+            aaa = "another.id:1.0.0"
+
+        """.trimIndent()
+
+        reportJson.writeText(
+            """
+            {
+            }
+            """.trimIndent()
+        )
+        File(tempDir.root, "gradle").mkdir()
+        File(tempDir.root, "gradle/libs.versions.toml").writeText(toml)
+
+        GradleRunner.create()
+            .withProjectDir(tempDir.root)
+            .withArguments("versionCatalogUpdate")
+            .withDebug(true)
+            .withPluginClasspath()
+            .build()
+
+        val libs = File(tempDir.root, "gradle/libs.versions.toml").readText()
+
+        assertEquals(
+            """
+            # Versions comment
+            [versions]
+            aaa = "4.5.6"
+            # Version key comment
+            bbb = "1.2.3"
+
+            # Libraries
+            # multiline
+            # comment
+            [libraries]
+            #comment for key aaa
+            aaa = "some:library:2.0"
+            bbb = "example:library:1.0"
+
+            #Bundles comment
+            [bundles]
+            #For key aaa
+            aaa = ["aaa"]
+            bbb = ["bbb"]
+
+            # plugins table comment
+            [plugins]
+            # plugin aaa
+            #
+            aaa = "another.id:1.0.0"
+            # plugin bbb
+            bbb = "some.id:1.2.3"
+
+            """.trimIndent(),
+            libs
+        )
+    }
+
+    @Test
+    fun `keeps annotated entries in toml file`() {
+        val reportJson = tempDir.newFile()
+
+        buildFile.writeText(
+            """
+            plugins {
+                id "nl.littlerobots.version-catalog-update"
+            }
+
+            tasks.named("versionCatalogUpdate").configure {
+                it.reportJson = file("${reportJson.name}")
+            }
+            """.trimIndent()
+        )
+
+        val toml = """
+            [versions]
+            # @keep this because it's cool
+            bbb = "1.2.3"
+            aaa = "4.5.6"
+
+            [libraries]
+            bbb = {module = "example:library", version.ref = "bbb"}
+            #@keep
+            aaa = "some:library:2.0"
+
+            # plugins table comment
+            [plugins]
+            bbb = { id = "some.id", version.ref = "bbb" }
+            # @keep
+            aaa = "another.id:1.0.0"
+
+        """.trimIndent()
+
+        reportJson.writeText(
+            """
+            {
+            }
+            """.trimIndent()
+        )
+        File(tempDir.root, "gradle").mkdir()
+        File(tempDir.root, "gradle/libs.versions.toml").writeText(toml)
+
+        GradleRunner.create()
+            .withProjectDir(tempDir.root)
+            .withArguments("versionCatalogUpdate")
+            .withDebug(true)
+            .withPluginClasspath()
+            .build()
+
+        val libs = File(tempDir.root, "gradle/libs.versions.toml").readText()
+
+        assertEquals(
+            """
+               [versions]
+               # @keep this because it's cool
+               bbb = "1.2.3"
+
+               [libraries]
+               #@keep
+               aaa = "some:library:2.0"
+
+               # plugins table comment
+               [plugins]
+               # @keep
+               aaa = "another.id:1.0.0"
+
+            """.trimIndent(),
+            libs
+        )
+    }
+
+    @Test
+    fun `pins annotated entries in toml file`() {
+        val reportJson = tempDir.newFile()
+
+        buildFile.writeText(
+            """
+            plugins {
+                id "nl.littlerobots.version-catalog-update"
+            }
+
+            tasks.named("versionCatalogUpdate").configure {
+                it.reportJson = file("${reportJson.name}")
+            }
+            """.trimIndent()
+        )
+
+        val toml = """
+            [versions]
+            # @pin
+            bbb = "1.2.3"
+
+            [libraries]
+            bbb = {module = "example:library", version.ref = "bbb"}
+            #@pinned
+            aaa = "some:library:2.0"
+
+            [plugins]
+            bbb = { id = "some.id", version.ref = "bbb" }
+            # @pin this plugin version
+            aaa = "another.id:1.0.0"
+
+        """.trimIndent()
+
+        reportJson.writeText(
+            """
+               {
+                 "outdated": {
+                   "dependencies": [
+                     {
+                       "group": "example",
+                       "available": {
+                         "release": null,
+                         "milestone": "2.0.0-alpha06",
+                         "integration": null
+                       },
+                       "version": "1.0.0-alpha05",
+                       "name": "library"
+                     },
+                     {
+                       "group": "some",
+                       "available": {
+                         "release": null,
+                         "milestone": "3.0.0-alpha06",
+                         "integration": null
+                       },
+                       "version": "1.0.0-alpha05",
+                       "name": "library"
+                     },
+                     {
+                       "group": "com.some.plugin",
+                       "available": {
+                         "release": null,
+                         "milestone": "3.0.0-alpha06",
+                         "integration": null
+                       },
+                       "version": "1.0.0-alpha05",
+                       "name": "some.id.gradle.plugin"
+                     },
+                     {
+                       "group": "com.another.plugin",
+                       "available": {
+                         "release": null,
+                         "milestone": "3.0.0-alpha06",
+                         "integration": null
+                       },
+                       "version": "1.0.0-alpha05",
+                       "name": "another.id.gradle.plugin"
+                     }
+                   ]
+                 }
+               }
+            """.trimIndent()
+        )
+        File(tempDir.root, "gradle").mkdir()
+        File(tempDir.root, "gradle/libs.versions.toml").writeText(toml)
+
+        GradleRunner.create()
+            .withProjectDir(tempDir.root)
+            .withArguments("versionCatalogUpdate")
+            .withDebug(true)
+            .withPluginClasspath()
+            .build()
+
+        val libs = File(tempDir.root, "gradle/libs.versions.toml").readText()
+
+        assertEquals(
+            """
+                [versions]
+                # @pin
+                bbb = "1.2.3"
+
+                [libraries]
+                #@pinned
+                aaa = "some:library:2.0"
+                bbb = { module = "example:library", version.ref = "bbb" }
+
+                [plugins]
+                # @pin this plugin version
+                aaa = "another.id:1.0.0"
+                bbb = { id = "some.id", version.ref = "bbb" }
+
+            """.trimIndent(),
+            libs
+        )
+    }
 }
