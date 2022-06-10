@@ -97,19 +97,7 @@ abstract class VersionCatalogUpdateTask @Inject constructor() : DefaultTask() {
             reportParser.generateCatalog(reportJson.get().asFile.inputStream(), useLatestVersions = !createCatalog)
         val catalogFromDependencies = versionsReportResult.catalog
 
-        val currentCatalog = if (catalogFile.get().exists()) {
-            if (createCatalog) {
-                throw GradleException("${catalogFile.get()} already exists and cannot be created from scratch.")
-            }
-            val catalogParser = VersionCatalogParser()
-            catalogParser.parse(catalogFile.get().inputStream())
-        } else {
-            if (createCatalog) {
-                VersionCatalog(emptyMap(), emptyMap(), emptyMap(), emptyMap())
-            } else {
-                throw GradleException("${catalogFile.get()} does not exist. Did you mean to specify the --create option?")
-            }
-        }
+        val currentCatalog = getCurrentCatalog(catalogFile.get())
 
         val pins = getPins(currentCatalog, pinRefs + getPinsRefsFromComments(currentCatalog))
         val keepRefs = this.keepRefs + getKeepRefsFromComments(currentCatalog)
@@ -119,7 +107,26 @@ abstract class VersionCatalogUpdateTask @Inject constructor() : DefaultTask() {
             catalogFromDependencies
         )
 
-        val updatedCatalog = currentCatalog.updateFrom(
+        val updatedCatalog = getUpdatedCatalog(currentCatalog, catalogWithResolvedPlugins, pins, keepRefs)
+
+        val writer = VersionCatalogWriter()
+        writer.write(updatedCatalog, catalogFile.get().writer())
+
+        if (versionsReportResult.exceeded.isNotEmpty() && !createCatalog) {
+            emitExceededWarning(versionsReportResult.exceeded, currentCatalog)
+        }
+
+        checkForUpdatesForLibrariesWithVersionCondition(updatedCatalog, versionsReportResult.outdated)
+        checkForUpdatesToPins(updatedCatalog, catalogWithResolvedPlugins, pins)
+    }
+
+    private fun getUpdatedCatalog(
+        currentCatalog: VersionCatalog,
+        catalogWithResolvedPlugins: VersionCatalog,
+        pins: Pins,
+        keepRefs: Set<VersionCatalogRef>
+    ): VersionCatalog {
+        return currentCatalog.updateFrom(
             catalog = catalogWithResolvedPlugins
                 .withPins(pins)
                 .withKeptReferences(
@@ -139,16 +146,22 @@ abstract class VersionCatalogUpdateTask @Inject constructor() : DefaultTask() {
                     it
                 }
             }
+    }
 
-        val writer = VersionCatalogWriter()
-        writer.write(updatedCatalog, catalogFile.get().writer())
-
-        if (versionsReportResult.exceeded.isNotEmpty() && !createCatalog) {
-            emitExceededWarning(versionsReportResult.exceeded, currentCatalog)
+    private fun getCurrentCatalog(catalogFile: File): VersionCatalog {
+        return if (catalogFile.exists()) {
+            if (createCatalog) {
+                throw GradleException("$catalogFile already exists and cannot be created from scratch.")
+            }
+            val catalogParser = VersionCatalogParser()
+            catalogParser.parse(catalogFile.inputStream())
+        } else {
+            if (createCatalog) {
+                VersionCatalog(emptyMap(), emptyMap(), emptyMap(), emptyMap())
+            } else {
+                throw GradleException("$catalogFile does not exist. Did you mean to specify the --create option?")
+            }
         }
-
-        checkForUpdatesForLibrariesWithVersionCondition(updatedCatalog, versionsReportResult.outdated)
-        checkForUpdatesToPins(updatedCatalog, catalogWithResolvedPlugins, pins)
     }
 
     /**
@@ -243,10 +256,10 @@ abstract class VersionCatalogUpdateTask @Inject constructor() : DefaultTask() {
                     }
                     project.logger.warn(
                         " - ${dependency.group}:${dependency.name} (libs.${
-                        declaredCatalogEntry.key.replace(
-                            '-',
-                            '.'
-                        )
+                            declaredCatalogEntry.key.replace(
+                                '-',
+                                '.'
+                            )
                         })\n     requested: ${dependency.currentVersion}$versionRef, resolved: ${dependency.latestVersion}"
                     )
                 }
