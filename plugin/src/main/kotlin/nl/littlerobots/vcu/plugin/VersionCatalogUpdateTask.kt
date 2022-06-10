@@ -256,10 +256,10 @@ abstract class VersionCatalogUpdateTask @Inject constructor() : DefaultTask() {
                     }
                     project.logger.warn(
                         " - ${dependency.group}:${dependency.name} (libs.${
-                            declaredCatalogEntry.key.replace(
-                                '-',
-                                '.'
-                            )
+                        declaredCatalogEntry.key.replace(
+                            '-',
+                            '.'
+                        )
                         })\n     requested: ${dependency.currentVersion}$versionRef, resolved: ${dependency.latestVersion}"
                     )
                 }
