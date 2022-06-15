@@ -22,6 +22,8 @@ import nl.littlerobots.vcu.model.VersionDefinition
 import java.io.PrintWriter
 import java.io.Writer
 
+private const val BUNDLE_INDENT = 4
+
 class VersionCatalogWriter {
     fun write(versionCatalog: VersionCatalog, writer: Writer) {
         val printWriter = PrintWriter(writer)
@@ -64,12 +66,15 @@ class VersionCatalogWriter {
                 for (comment in versionCatalog.bundleComments.getCommentsForKey(bundle.key)) {
                     printWriter.println(comment)
                 }
+                val bundleStart = "${bundle.key} = ["
                 printWriter.println(
-                    "${bundle.key} = [${
                     bundle.value.joinToString(
-                        ", "
-                    ) { "\"${it}\"" }
-                    }]"
+                        prefix = bundleStart + System.lineSeparator() + " ".repeat(BUNDLE_INDENT),
+                        separator = System.lineSeparator() + " ".repeat(
+                            BUNDLE_INDENT
+                        ),
+                        postfix = System.lineSeparator() + "]"
+                    ) { "\"$it\"," }
                 )
             }
         }
@@ -140,3 +145,5 @@ class VersionCatalogWriter {
         else -> throw IllegalStateException("Invalid version definition $versionDefinition")
     }
 }
+
+private fun List<String>.toQuotedList() = joinToString(separator = ", ") { "\"${it}\"" }

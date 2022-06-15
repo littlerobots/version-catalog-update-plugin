@@ -628,7 +628,7 @@ class VersionCatalogUpdatePluginTest {
         File(tempDir.root, "gradle").mkdir()
         File(tempDir.root, "gradle/libs.versions.toml").writeText(toml)
 
-        val buildResult = GradleRunner.create()
+        GradleRunner.create()
             .withProjectDir(tempDir.root)
             .withArguments("versionCatalogUpdate")
             .withDebug(true)
@@ -720,8 +720,12 @@ class VersionCatalogUpdatePluginTest {
                 aaa = "some:library:2.0"
 
                 [bundles]
-                bbb = ["bbb"]
-                aaa = ["aaa"]
+                bbb = [
+                    "bbb",
+                ]
+                aaa = [
+                    "aaa",
+                ]
 
                 [plugins]
                 bbb = "some.id:1.2.3"
@@ -804,8 +808,12 @@ class VersionCatalogUpdatePluginTest {
                 bbb = "example:library:1.0"
 
                 [bundles]
-                aaa = ["aaa"]
-                bbb = ["bbb"]
+                aaa = [
+                    "aaa",
+                ]
+                bbb = [
+                    "bbb",
+                ]
 
                 [plugins]
                 aaa = "another.id:1.0.0"
@@ -892,33 +900,37 @@ class VersionCatalogUpdatePluginTest {
 
         assertEquals(
             """
-            # Versions comment
-            [versions]
-            aaa = "4.5.6"
-            # Version key comment
-            bbb = "1.2.3"
+               # Versions comment
+               [versions]
+               aaa = "4.5.6"
+               # Version key comment
+               bbb = "1.2.3"
 
-            # Libraries
-            # multiline
-            # comment
-            [libraries]
-            #comment for key aaa
-            aaa = "some:library:2.0"
-            bbb = "example:library:1.0"
+               # Libraries
+               # multiline
+               # comment
+               [libraries]
+               #comment for key aaa
+               aaa = "some:library:2.0"
+               bbb = "example:library:1.0"
 
-            #Bundles comment
-            [bundles]
-            #For key aaa
-            aaa = ["aaa"]
-            bbb = ["bbb"]
+               #Bundles comment
+               [bundles]
+               #For key aaa
+               aaa = [
+                   "aaa",
+               ]
+               bbb = [
+                   "bbb",
+               ]
 
-            # plugins table comment
-            [plugins]
-            # plugin aaa
-            #
-            aaa = "another.id:1.0.0"
-            # plugin bbb
-            bbb = "some.id:1.2.3"
+               # plugins table comment
+               [plugins]
+               # plugin aaa
+               #
+               aaa = "another.id:1.0.0"
+               # plugin bbb
+               bbb = "some.id:1.2.3"
 
             """.trimIndent(),
             libs

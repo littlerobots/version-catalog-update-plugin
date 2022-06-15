@@ -149,7 +149,7 @@ class VersionCatalogWriterTest {
     }
 
     @Test
-    fun `writes bundle definition`() {
+    fun `writes and formats bundle definition`() {
         val catalogWriter = VersionCatalogWriter()
         val writer = StringWriter()
         val catalog = VersionCatalog(
@@ -161,10 +161,14 @@ class VersionCatalogWriterTest {
         catalogWriter.write(catalog, writer)
 
         assertEquals(
-            """[bundles]
-               |test = ["lib1", "lib2"]
-               |
-        """.trimMargin(),
+            """
+               [bundles]
+               test = [
+                   "lib1",
+                   "lib2",
+               ]
+
+            """.trimIndent(),
             writer.toString()
         )
     }
@@ -278,7 +282,9 @@ class VersionCatalogWriterTest {
                 # Table comment for bundles
                 [bundles]
                 # test bundle comment
-                test = ["lib"]
+                test = [
+                    "lib",
+                ]
 
             """.trimIndent(),
             writer.toString()

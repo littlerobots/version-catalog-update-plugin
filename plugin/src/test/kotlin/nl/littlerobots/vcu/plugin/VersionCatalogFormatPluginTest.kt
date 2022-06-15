@@ -53,6 +53,8 @@ class VersionCatalogFormatPluginTest {
                 test = { module = "some.dependency:test", version = "1.0.0" }
                 androidx-test-junit4 = "androidx.compose.ui:ui-test-junit4:1.1.0-rc02"
 
+                [bundles]
+                my-bundle = ["test","androidx-test-junit4"]
         """.trimIndent()
 
         File(tempDir.root, "gradle").mkdir()
@@ -68,9 +70,15 @@ class VersionCatalogFormatPluginTest {
 
         assertEquals(
             """
-            [libraries]
-            androidx-test-junit4 = "androidx.compose.ui:ui-test-junit4:1.1.0-rc02"
-            test = "some.dependency:test:1.0.0"
+               [libraries]
+               androidx-test-junit4 = "androidx.compose.ui:ui-test-junit4:1.1.0-rc02"
+               test = "some.dependency:test:1.0.0"
+
+               [bundles]
+               my-bundle = [
+                   "androidx-test-junit4",
+                   "test",
+               ]
 
             """.trimIndent(),
             libs
