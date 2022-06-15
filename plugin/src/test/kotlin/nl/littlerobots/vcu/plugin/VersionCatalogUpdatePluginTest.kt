@@ -57,6 +57,27 @@ class VersionCatalogUpdatePluginTest {
     }
 
     @Test
+    fun `plugin does not require versions plugin if upgrade task is disabled`() {
+        buildFile.writeText(
+            """
+            plugins {
+                id "nl.littlerobots.version-catalog-update"
+            }
+
+            tasks.named("versionCatalogUpdate").configure {
+                it.enabled = false
+            }
+            """.trimIndent()
+        )
+
+        GradleRunner.create()
+            .withProjectDir(tempDir.root)
+            .withArguments("versionCatalogUpdate")
+            .withPluginClasspath()
+            .build()
+    }
+
+    @Test
     fun `plugins with plugin block syntax in subprojects are detected`() {
         val reportJson = tempDir.newFile()
 
@@ -557,7 +578,7 @@ class VersionCatalogUpdatePluginTest {
         // force creation and configuration of dependent task
         project.tasks.getByName("dependencyUpdates")
 
-        val task = project.tasks.getByName(TASK_NAME) as VersionCatalogUpdateTask
+        val task = project.tasks.getByName(UPDATE_TASK_NAME) as VersionCatalogUpdateTask
         assertNotNull(task.reportJson.orNull)
     }
 
