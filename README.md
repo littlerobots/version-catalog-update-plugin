@@ -59,6 +59,11 @@ To update the catalog file at any time run `./gradlew versionCatalogUpdate`. Thi
 No new entries will be added to the catalog, but unused entries will be removed. Any dependency that is not reported by the versions plugin, but still appears
 in the version catalog file will be considered unused. This is [configurable](#configuration).
 
+### Formatting only
+To format the existing `libs.versions.toml` file without updating library versions, you can run `./gradlew versionCatalogFormat`.
+This will format the version catalog and create new version references, just like the `versionCatalogUpdate` task would do.
+This comes in handy when you added an entry to the version catalog, but aren't ready yet to update any dependencies.
+
 ## Informational output
 In some cases the plugin will output some additional messages when checking for updates.
 

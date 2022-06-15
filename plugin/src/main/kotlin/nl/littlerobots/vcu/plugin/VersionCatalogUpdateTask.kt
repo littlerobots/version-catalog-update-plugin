@@ -42,6 +42,8 @@ import org.gradle.api.tasks.InputFile
 import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.Optional
 import org.gradle.api.tasks.OutputFile
+import org.gradle.api.tasks.PathSensitive
+import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
 import org.gradle.api.tasks.options.Option
 import org.gradle.internal.component.external.model.ModuleComponentArtifactIdentifier
@@ -52,6 +54,7 @@ import javax.inject.Inject
 private const val PROPERTIES_SUFFIX = ".properties"
 
 abstract class VersionCatalogUpdateTask @Inject constructor() : DefaultTask() {
+    @get:PathSensitive(PathSensitivity.RELATIVE)
     @get:InputFile
     abstract val reportJson: RegularFileProperty
 

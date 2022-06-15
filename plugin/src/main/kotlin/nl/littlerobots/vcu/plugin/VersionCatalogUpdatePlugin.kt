@@ -22,7 +22,8 @@ import org.gradle.api.Project
 import org.gradle.util.GradleVersion
 import java.io.File
 
-internal const val TASK_NAME = "versionCatalogUpdate"
+internal const val UPDATE_TASK_NAME = "versionCatalogUpdate"
+internal const val FORMAT_TASK_NAME = "versionCatalogFormat"
 internal const val EXTENSION_NAME = "versionCatalogUpdate"
 private const val DEPENDENCY_UPDATES_TASK_NAME = "dependencyUpdates"
 private const val VERSIONS_PLUGIN_ID = "com.github.ben-manes.versions"
@@ -44,7 +45,8 @@ class VersionCatalogUpdatePlugin : Plugin<Project> {
 
         val reportJson = project.objects.fileProperty()
 
-        val catalogUpdatesTask = project.tasks.register(TASK_NAME, VersionCatalogUpdateTask::class.java)
+        val catalogUpdatesTask = project.tasks.register(UPDATE_TASK_NAME, VersionCatalogUpdateTask::class.java)
+        val catalogFormatTask = project.tasks.register(FORMAT_TASK_NAME, VersionCatalogFormatTask::class.java)
 
         catalogUpdatesTask.configure { task ->
             task.reportJson.set(reportJson)
@@ -52,6 +54,13 @@ class VersionCatalogUpdatePlugin : Plugin<Project> {
             task.keep.set(project.objects.newInstance(KeepConfigurationInput::class.java, extension.keep))
             task.sortByKey.set(extension.sortByKey)
 
+            if (!task.catalogFile.isPresent) {
+                task.catalogFile.set(project.rootProject.file("gradle/libs.versions.toml"))
+            }
+        }
+
+        catalogFormatTask.configure { task ->
+            task.sortByKey.set(extension.sortByKey)
             if (!task.catalogFile.isPresent) {
                 task.catalogFile.set(project.rootProject.file("gradle/libs.versions.toml"))
             }
@@ -69,7 +78,7 @@ class VersionCatalogUpdatePlugin : Plugin<Project> {
 
         project.afterEvaluate {
             catalogUpdatesTask.configure {
-                if (!it.reportJson.isPresent) {
+                if (it.enabled && !it.reportJson.isPresent) {
                     if (!project.pluginManager.hasPlugin(VERSIONS_PLUGIN_ID)) {
                         throw IllegalStateException("com.github.ben-manes.versions needs to be applied as a plugin")
                     }

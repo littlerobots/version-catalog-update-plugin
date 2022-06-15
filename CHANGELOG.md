@@ -1,5 +1,9 @@
 # Changelog
 
+Version 0.4.1-SNAPSHOT
+-------------
+* Added `versionCatalogFormat` task for formatting only, without updating dependencies. [(#48)](https://github.com/littlerobots/version-catalog-update-plugin/issues/48)
+
 Version 0.4.0
 -------------
 * Retain comments in TOML file (with some limitations) [(#18)](https://github.com/littlerobots/version-catalog-update-plugin/issues/18)
