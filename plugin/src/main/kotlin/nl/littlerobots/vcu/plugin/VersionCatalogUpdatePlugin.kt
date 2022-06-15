@@ -40,9 +40,6 @@ class VersionCatalogUpdatePlugin : Plugin<Project> {
 
         val extension = project.extensions.create(EXTENSION_NAME, VersionCatalogUpdateExtension::class.java)
 
-        // TODO see if we can configure the output format in other ways or if this is fine
-        System.setProperty("outputFormatter", "json,xml,plain")
-
         val reportJson = project.objects.fileProperty()
 
         val catalogUpdatesTask = project.tasks.register(UPDATE_TASK_NAME, VersionCatalogUpdateTask::class.java)
@@ -70,6 +67,9 @@ class VersionCatalogUpdatePlugin : Plugin<Project> {
             val dependencyUpdatesTask =
                 project.tasks.named(DEPENDENCY_UPDATES_TASK_NAME, DependencyUpdatesTask::class.java) {
                     reportJson.set(File(project.file(it.outputDir), "${it.reportfileName}.json"))
+                    it.outputFormatter = "json,xml,plain"
+                    it.checkConstraints = true
+                    it.checkBuildEnvironmentConstraints = true
                 }
             catalogUpdatesTask.configure {
                 it.dependsOn(dependencyUpdatesTask)
