@@ -4,6 +4,7 @@ Version 0.5.0 (Unreleased)
 -------------
 * Added `versionCatalogFormat` task for formatting only, without updating dependencies. [(#48)](https://github.com/littlerobots/version-catalog-update-plugin/issues/48)
 * The [versions plugin](https://github.com/ben-manes/gradle-versions-plugin) is configured to [check constraints](https://github.com/ben-manes/gradle-versions-plugin#constraints) by default now. At least version `0.4.0` of the versions plugin is required.
+* Bundles are now formatted with one entry per line and a trailing comma for easier diffing. [(#44)](https://github.com/littlerobots/version-catalog-update-plugin/issues/44)
 
 Version 0.4.0
 -------------
