@@ -21,7 +21,7 @@ dependencies {
     implementation project(":catalog")
 
     testImplementation 'junit:junit:4.13.2'
-    testImplementation 'com.github.ben-manes:gradle-versions-plugin:0.39.0'
+    testImplementation 'com.github.ben-manes:gradle-versions-plugin:0.40.0'
     testImplementation(gradleTestKit())
-    compileOnly 'com.github.ben-manes:gradle-versions-plugin:0.39.0'
+    compileOnly 'com.github.ben-manes:gradle-versions-plugin:0.40.0'
 }

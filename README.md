@@ -44,8 +44,9 @@ You can rename and remove keys that are not applicable; the versions plugin may 
 
 The plugin will attempt to create versions for artifacts in the same group with a common version.
 
-The catalog will be updated with the latest available version as determined by the versions plugin. [You can configure the versions plugin](https://github.com/ben-manes/gradle-versions-plugin#rejectversionsif-and-componentselection)
-on what versions are acceptable. A common case is to reject unstable versions like alphas.
+The catalog will be updated with the latest available version as determined by the versions plugin.
+__[You should probably configure the versions plugin on what versions are acceptable](https://github.com/ben-manes/gradle-versions-plugin#rejectversionsif-and-componentselection)__
+A common case is to reject unstable versions like alphas, [please refer to these examples](https://github.com/ben-manes/gradle-versions-plugin#rejectversionsif-and-componentselection).
 
 After you have created the `libs.versions.toml` file you can update your dependency references to use the catalog instead of direct dependency declarations.
 
