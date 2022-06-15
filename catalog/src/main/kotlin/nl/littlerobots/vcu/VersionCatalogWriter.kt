@@ -22,7 +22,7 @@ import nl.littlerobots.vcu.model.VersionDefinition
 import java.io.PrintWriter
 import java.io.Writer
 
-private const val MAX_BUNDLE_LINE_LENGTH = 120
+private const val BUNDLE_INDENT = 4
 
 class VersionCatalogWriter {
     fun write(versionCatalog: VersionCatalog, writer: Writer) {
@@ -67,27 +67,15 @@ class VersionCatalogWriter {
                     printWriter.println(comment)
                 }
                 val bundleStart = "${bundle.key} = ["
-
-                val libraries = bundle.value.fold(emptyList<List<String>>()) {
-                    acc, s ->
-                    val last = acc.lastOrNull() ?: emptyList()
-                    when {
-                        // first line of libraries
-                        acc.isEmpty() -> listOf(listOf(s))
-                        (last + s).toQuotedList().length + bundleStart.length > MAX_BUNDLE_LINE_LENGTH -> {
-                            // add new line
-                            acc + listOf(listOf(s))
-                        }
-                        else -> {
-                            // append to current line
-                            acc.dropLast(1) + listOf(last + s)
-                        }
-                    }
-                }.joinToString(separator = "," + System.lineSeparator() + " ".repeat(bundleStart.length), prefix = bundleStart, postfix = "]") {
-                    it.toQuotedList()
-                }
-
-                printWriter.println(libraries)
+                printWriter.println(
+                    bundle.value.joinToString(
+                        prefix = bundleStart + System.lineSeparator() + " ".repeat(BUNDLE_INDENT),
+                        separator = System.lineSeparator() + " ".repeat(
+                            BUNDLE_INDENT
+                        ),
+                        postfix = System.lineSeparator() + "]"
+                    ) { "\"$it\"," }
+                )
             }
         }
         if (versionCatalog.plugins.isNotEmpty()) {

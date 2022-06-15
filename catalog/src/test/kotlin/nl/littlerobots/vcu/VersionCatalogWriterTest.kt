@@ -149,31 +149,7 @@ class VersionCatalogWriterTest {
     }
 
     @Test
-    fun `wraps long bundle declarations`() {
-        val catalogWriter = VersionCatalogWriter()
-        val writer = StringWriter()
-        val catalog = VersionCatalog(
-            emptyMap(),
-            emptyMap(),
-            mapOf("test" to List(20) { "library-$it" }),
-            emptyMap()
-        )
-        catalogWriter.write(catalog, writer)
-
-        assertEquals(
-            """
-                [bundles]
-                test = ["library-0", "library-1", "library-2", "library-3", "library-4", "library-5", "library-6", "library-7",
-                        "library-8", "library-9", "library-10", "library-11", "library-12", "library-13", "library-14", "library-15",
-                        "library-16", "library-17", "library-18", "library-19"]
-
-            """.trimIndent(),
-            writer.toString()
-        )
-    }
-
-    @Test
-    fun `writes bundle definition`() {
+    fun `writes and formats bundle definition`() {
         val catalogWriter = VersionCatalogWriter()
         val writer = StringWriter()
         val catalog = VersionCatalog(
@@ -185,10 +161,14 @@ class VersionCatalogWriterTest {
         catalogWriter.write(catalog, writer)
 
         assertEquals(
-            """[bundles]
-               |test = ["lib1", "lib2"]
-               |
-        """.trimMargin(),
+            """
+               [bundles]
+               test = [
+                   "lib1",
+                   "lib2",
+               ]
+
+            """.trimIndent(),
             writer.toString()
         )
     }
@@ -302,7 +282,9 @@ class VersionCatalogWriterTest {
                 # Table comment for bundles
                 [bundles]
                 # test bundle comment
-                test = ["lib"]
+                test = [
+                    "lib",
+                ]
 
             """.trimIndent(),
             writer.toString()
