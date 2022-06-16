@@ -1,4 +1,7 @@
 # Changelog
+Version 0.5.1
+-------------
+* Fix dropping unused versions when formatting (respecting keep settings) [(#54)](https://github.com/littlerobots/version-catalog-update-plugin/issues/48)
 
 Version 0.5.0
 -------------
