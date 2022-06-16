@@ -145,5 +145,3 @@ class VersionCatalogWriter {
         else -> throw IllegalStateException("Invalid version definition $versionDefinition")
     }
 }
-
-private fun List<String>.toQuotedList() = joinToString(separator = ", ") { "\"${it}\"" }
