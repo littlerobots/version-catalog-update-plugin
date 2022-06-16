@@ -571,6 +571,161 @@ class VersionCatalogUpdatePluginTest {
     }
 
     @Test
+    fun `available update for pinned library emits message`() {
+        val reportJson = tempDir.newFile()
+
+        buildFile.writeText(
+            """
+            plugins {
+                id "nl.littlerobots.version-catalog-update"
+            }
+
+            tasks.named("versionCatalogUpdate").configure {
+                it.reportJson = file("${reportJson.name}")
+            }
+            """.trimIndent()
+        )
+
+        reportJson.writeText(
+            """
+            {
+                "outdated": {
+                    "dependencies": [
+                        {
+                            "group": "io.coil-kt",
+                            "available": {
+                                "release": null,
+                                "milestone": "2.0.0-alpha06",
+                                "integration": null
+                            },
+                            "userReason": null,
+                            "version": "2.0.0-alpha05",
+                            "projectUrl": "https://github.com/coil-kt/coil",
+                            "name": "coil-compose"
+                        }
+                    ]
+                }            }
+            """.trimIndent()
+        )
+
+        val toml = """
+                [libraries]
+                # @pin
+                coil = { module = "io.coil-kt:coil-compose", version = "2.0.0-alpha05" }
+
+        """.trimIndent()
+
+        File(tempDir.root, "gradle").mkdir()
+        File(tempDir.root, "gradle/libs.versions.toml").writeText(toml)
+
+        val buildResult = GradleRunner.create()
+            .withProjectDir(tempDir.root)
+            .withArguments("versionCatalogUpdate")
+            .withPluginClasspath()
+            .withDebug(true)
+            .build()
+
+        val libs = File(tempDir.root, "gradle/libs.versions.toml").readText()
+
+        assertEquals(
+            """
+                [libraries]
+                # @pin
+                coil = "io.coil-kt:coil-compose:2.0.0-alpha05"
+
+            """.trimIndent(),
+            libs
+        )
+        println(buildResult.output)
+        assertTrue(
+            buildResult.output.contains(
+                """
+                    There are updates available for pinned libraries in the version catalog:
+                     - io.coil-kt:coil-compose (coil) 2.0.0-alpha05 -> 2.0.0-alpha06
+
+                """.trimIndent()
+            )
+        )
+    }
+
+    @Test
+    fun `available update for pinned plugin emits message`() {
+        val reportJson = tempDir.newFile()
+
+        buildFile.writeText(
+            """
+            plugins {
+                id "nl.littlerobots.version-catalog-update"
+            }
+
+            tasks.named("versionCatalogUpdate").configure {
+                it.reportJson = file("${reportJson.name}")
+            }
+            """.trimIndent()
+        )
+
+        reportJson.writeText(
+            """
+            {
+                "outdated": {
+                    "dependencies": [
+                        {
+                            "group": "nl.littlerobots.version-catalog-update",
+                            "available": {
+                                "release": null,
+                                "milestone": "0.2.0",
+                                "integration": null
+                            },
+                            "userReason": null,
+                            "version": "0.1.0",
+                            "name": "nl.littlerobots.version-catalog-update.gradle.plugin"
+                        }
+                    ]
+                }            }
+            """.trimIndent()
+        )
+
+        val toml = """
+                [plugins]
+                # @pin
+                vcu = { id = "nl.littlerobots.version-catalog-update", version = "0.1.0" }
+
+        """.trimIndent()
+
+        File(tempDir.root, "gradle").mkdir()
+        File(tempDir.root, "gradle/libs.versions.toml").writeText(toml)
+
+        val buildResult = GradleRunner.create()
+            .withProjectDir(tempDir.root)
+            .withArguments("versionCatalogUpdate")
+            .withPluginClasspath()
+            .withDebug(true)
+            .build()
+
+        val libs = File(tempDir.root, "gradle/libs.versions.toml").readText()
+
+        assertEquals(
+            """
+               [plugins]
+               # @pin
+               vcu = "nl.littlerobots.version-catalog-update:0.1.0"
+
+            """.trimIndent(),
+            libs
+        )
+        println(buildResult.output)
+        assertTrue(
+            buildResult.output.contains(
+                """
+                    There are updates available for pinned plugins in the version catalog:
+                     - nl.littlerobots.version-catalog-update (vcu) 0.1.0 -> 0.2.0
+
+                """.trimIndent()
+            )
+        )
+    }
+
+    @Test
     fun `adds VersionCatalogUpdateTask and sets report path`() {
         val project: Project = ProjectBuilder.builder().build()
         project.pluginManager.apply("com.github.ben-manes.versions")

@@ -150,16 +150,18 @@ abstract class VersionCatalogUpdateTask @Inject constructor() : DefaultTask() {
         }
 
         checkForUpdatesForLibrariesWithVersionCondition(updatedCatalog, versionsReportResult.outdated)
-        checkForUpdatesToPins(updatedCatalog, catalogWithResolvedPlugins, pins)
+        checkForUpdatedPinnedLibraries(updatedCatalog, catalogWithResolvedPlugins, pins)
+        checkForUpdatedPinnedPlugins(updatedCatalog, catalogWithResolvedPlugins, pins)
     }
 
     /**
      * Emit a warning when there are updates for pinned libraries and plugins
      * @param updatedCatalog the updated catalog
-     * @param catalogWithResolvedPlugins the catalog with the latest updates
+     * @param catalogWithResolvedPlugins the catalog with the latest available updates
      * @param pins the pins
      */
-    private fun checkForUpdatesToPins(
+    @Suppress("DuplicatedCode")
+    private fun checkForUpdatedPinnedLibraries(
         updatedCatalog: VersionCatalog,
         catalogWithResolvedPlugins: VersionCatalog,
         pins: Pins
@@ -178,12 +180,63 @@ abstract class VersionCatalogUpdateTask @Inject constructor() : DefaultTask() {
             it.first.version != it.second.value.version && it.first.version is VersionDefinition.Simple
         }
 
+        val libraryKeys = appliedPins.associate {
+            it.first.group to updatedCatalog.libraries.entries.first { entry ->
+                entry.value.group == it.first.group
+            }.key
+        }
+
         if (appliedPins.isNotEmpty()) {
             project.logger.warn(
-                "There are updates available for pinned entries in the version catalog:"
+                "There are updates available for pinned libraries in the version catalog:"
             )
             for (pin in appliedPins) {
-                val message = " - ${pin.first.module} (${pin.second.key}) " +
+                val message = " - ${pin.first.module} (${libraryKeys[pin.first.group]}) " +
+                    "${(pin.first.version as VersionDefinition.Simple).version} -> " +
+                    (pin.second.value.version as VersionDefinition.Simple).version
+                project.logger.warn(message)
+            }
+        }
+    }
+
+    /**
+     * Emit a warning when there are updates for pinned plugins
+     * @param updatedCatalog the updated catalog
+     * @param catalogWithResolvedPlugins the catalog with the latest available updates
+     * @param pins the pins
+     */
+    @Suppress("DuplicatedCode")
+    private fun checkForUpdatedPinnedPlugins(
+        updatedCatalog: VersionCatalog,
+        catalogWithResolvedPlugins: VersionCatalog,
+        pins: Pins
+    ) {
+        val resolvedVersions = updatedCatalog.resolveVersions()
+
+        val appliedPins = pins.plugins.filter { pin ->
+            resolvedVersions.plugins.values.any {
+                it.id == pin.id
+            }
+        }.map { plugin ->
+            plugin to catalogWithResolvedPlugins.plugins.entries.first {
+                it.value.id == plugin.id
+            }
+        }.filter {
+            it.first.version != it.second.value.version && it.first.version is VersionDefinition.Simple
+        }
+
+        val pluginKeys = appliedPins.associate {
+            it.first.id to updatedCatalog.plugins.entries.first { entry ->
+                entry.value.id == it.first.id
+            }.key
+        }
+
+        if (appliedPins.isNotEmpty()) {
+            project.logger.warn(
+                "There are updates available for pinned plugins in the version catalog:"
+            )
+            for (pin in appliedPins) {
+                val message = " - ${pin.first.id} (${pluginKeys[pin.first.id]}) " +
                     "${(pin.first.version as VersionDefinition.Simple).version} -> " +
                     (pin.second.value.version as VersionDefinition.Simple).version
                 project.logger.warn(message)
