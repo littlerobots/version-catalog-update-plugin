@@ -17,7 +17,6 @@ package nl.littlerobots.vcu.plugin
 
 import nl.littlerobots.vcu.VersionCatalogParser
 import nl.littlerobots.vcu.VersionCatalogWriter
-import nl.littlerobots.vcu.model.Comments
 import nl.littlerobots.vcu.model.Library
 import nl.littlerobots.vcu.model.Plugin
 import nl.littlerobots.vcu.model.VersionCatalog
@@ -114,7 +113,7 @@ abstract class VersionCatalogUpdateTask @Inject constructor() : DefaultTask() {
             }
         }
 
-        val pins = getPins(currentCatalog, pinRefs + getPinsRefsFromComments(currentCatalog))
+        val pins = getPins(currentCatalog, pinRefs + getPinnedRefsFromComments(currentCatalog))
         val keepRefs = this.keepRefs + getKeepRefsFromComments(currentCatalog)
 
         val catalogWithResolvedPlugins = resolvePluginIds(
@@ -321,38 +320,6 @@ abstract class VersionCatalogUpdateTask @Inject constructor() : DefaultTask() {
         return ids
     }
 
-    private fun getPinsRefsFromComments(currentCatalog: VersionCatalog): Set<VersionCatalogRef> {
-        return getRefsFromComments(currentCatalog) {
-            it.getPinnedKeys()
-        }
-    }
-
-    private fun getKeepRefsFromComments(currentCatalog: VersionCatalog): Set<VersionCatalogRef> {
-        return getRefsFromComments(currentCatalog) {
-            it.getKeptKeys()
-        }
-    }
-
-    private fun getRefsFromComments(
-        currentCatalog: VersionCatalog,
-        getRefs: (Comments) -> Set<String>
-    ): Set<VersionCatalogRef> {
-        return getRefs(currentCatalog.versionComments).map {
-            VersionRef(it)
-        }.toSet() + getRefs(currentCatalog.libraryComments).mapNotNull {
-            currentCatalog.libraries[it]
-        }.map {
-            LibraryRef(object : ModuleIdentifier {
-                override fun getGroup(): String = it.group
-                override fun getName(): String = it.name
-            })
-        }.toSet() + getRefs(currentCatalog.pluginComments).mapNotNull {
-            currentCatalog.plugins[it]
-        }.map {
-            PluginRef(it.id)
-        }.toSet()
-    }
-
     @Suppress("UnstableApiUsage")
     private fun getPins(currentCatalog: VersionCatalog, pins: Set<VersionCatalogRef>): Pins {
         val pinsByType = pins.groupBy { it::class }
@@ -464,30 +431,6 @@ private fun VersionCatalog.withKeptReferences(
     }
 
     return copy(libraries = this.libraries + keptLibraries, plugins = this.plugins + keptPlugins)
-}
-
-private fun VersionCatalog.withKeepUnusedVersions(currentCatalog: VersionCatalog, keep: Boolean): VersionCatalog {
-    if (!keep) {
-        return this
-    }
-    val removedVersions = currentCatalog.versions.entries.filter {
-        !versions.containsKey(it.key)
-    }.associate { it.key to it.value }
-    return copy(versions = versions + removedVersions)
-}
-
-private fun VersionCatalog.withKeptVersions(
-    currentCatalog: VersionCatalog,
-    refs: Set<VersionCatalogRef>
-): VersionCatalog {
-    val keptVersions = refs.filterIsInstance<VersionRef>().filter {
-        currentCatalog.versions.containsKey(it.versionName) && !versions.containsKey(it.versionName)
-    }.mapNotNull { ref ->
-        currentCatalog.versions[ref.versionName]?.let {
-            ref.versionName to it
-        }
-    }.toMap()
-    return copy(versions = versions + keptVersions)
 }
 
 private fun VersionCatalog.withPins(pins: Pins): VersionCatalog {
