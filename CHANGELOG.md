@@ -1,7 +1,8 @@
 # Changelog
 Version 0.5.1
 -------------
-* Fix dropping unused versions when formatting (respecting keep settings) [(#54)](https://github.com/littlerobots/version-catalog-update-plugin/issues/48)
+* Fix dropping unused versions when formatting (respecting keep settings) [(#54)](https://github.com/littlerobots/version-catalog-update-plugin/issues/54)
+* Show message when pinned plugins can be updated [(#53)](https://github.com/littlerobots/version-catalog-update-plugin/issues/53)
 
 Version 0.5.0
 -------------
