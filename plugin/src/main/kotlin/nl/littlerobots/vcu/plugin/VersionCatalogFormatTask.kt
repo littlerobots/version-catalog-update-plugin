@@ -24,6 +24,7 @@ import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputFile
+import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.Optional
 import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
@@ -39,17 +40,29 @@ abstract class VersionCatalogFormatTask @Inject constructor() : DefaultTask() {
     @get:Optional
     abstract val sortByKey: Property<Boolean>
 
+    @get:Internal
+    abstract val keep: Property<KeepConfigurationInput>
+
+    private val keepRefs by lazy {
+        keep.orNull?.getVersionCatalogRefs() ?: emptySet()
+    }
+
     @TaskAction
     fun formatCatalogFile() {
         val catalog = VersionCatalogParser().parse(catalogFile.get().asFile.inputStream())
+        val keepRefs = this.keepRefs + getKeepRefsFromComments(catalog)
+
         // run an "update" to group versions
-        val updated = catalog.updateFrom(catalog).let {
-            if (sortByKey.getOrElse(true)) {
-                it.sortKeys()
-            } else {
-                it
+        val updated = catalog.updateFrom(catalog)
+            .withKeepUnusedVersions(catalog, keep.orNull?.keepUnusedVersions?.getOrElse(false) ?: false)
+            .withKeptVersions(catalog, keepRefs)
+            .let {
+                if (sortByKey.getOrElse(true)) {
+                    it.sortKeys()
+                } else {
+                    it
+                }
             }
-        }
         VersionCatalogWriter().write(updated, catalogFile.get().asFile.writer())
     }
 }

@@ -58,6 +58,8 @@ class VersionCatalogUpdatePlugin : Plugin<Project> {
 
         catalogFormatTask.configure { task ->
             task.sortByKey.set(extension.sortByKey)
+            task.keep.set(project.objects.newInstance(KeepConfigurationInput::class.java, extension.keep))
+
             if (!task.catalogFile.isPresent) {
                 task.catalogFile.set(project.rootProject.file("gradle/libs.versions.toml"))
             }

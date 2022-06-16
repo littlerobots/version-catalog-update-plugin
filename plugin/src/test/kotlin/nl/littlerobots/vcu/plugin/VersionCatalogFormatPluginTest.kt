@@ -84,4 +84,143 @@ class VersionCatalogFormatPluginTest {
             libs
         )
     }
+
+    @Test
+    fun `formats keeps all unused versions`() {
+        buildFile.writeText(
+            """
+            plugins {
+                id "nl.littlerobots.version-catalog-update"
+            }
+
+            // disable to forego the versions plugin requirement
+            tasks.named("versionCatalogUpdate").configure {
+                it.enabled = false
+            }
+
+            versionCatalogUpdate {
+                keep {
+                    keepUnusedVersions = true
+                }
+            }
+            """.trimIndent()
+        )
+
+        val toml = """
+                [versions]
+                myversion = "1.0.0"
+                notused = "1.0.0"
+                notusedeither = "1.0.0"
+
+                [libraries]
+                test = { module = "some.dependency:test", version.ref = "myversion" }
+                androidx-test-junit4 = "androidx.compose.ui:ui-test-junit4:1.1.0-rc02"
+
+                [bundles]
+                my-bundle = ["test","androidx-test-junit4"]
+        """.trimIndent()
+
+        File(tempDir.root, "gradle").mkdir()
+        File(tempDir.root, "gradle/libs.versions.toml").writeText(toml)
+
+        GradleRunner.create()
+            .withProjectDir(tempDir.root)
+            .withArguments("versionCatalogFormat")
+            .withPluginClasspath()
+            .build()
+
+        val libs = File(tempDir.root, "gradle/libs.versions.toml").readText()
+
+        assertEquals(
+            """
+                [versions]
+                myversion = "1.0.0"
+                notused = "1.0.0"
+                notusedeither = "1.0.0"
+
+                [libraries]
+                androidx-test-junit4 = "androidx.compose.ui:ui-test-junit4:1.1.0-rc02"
+                test = { module = "some.dependency:test", version.ref = "myversion" }
+
+                [bundles]
+                my-bundle = [
+                    "androidx-test-junit4",
+                    "test",
+                ]
+
+            """.trimIndent(),
+            libs
+        )
+    }
+
+    @Test
+    fun `formats keeps configured kept versions`() {
+        buildFile.writeText(
+            """
+            plugins {
+                id "nl.littlerobots.version-catalog-update"
+            }
+
+            // disable to forego the versions plugin requirement
+            tasks.named("versionCatalogUpdate").configure {
+                it.enabled = false
+            }
+
+            versionCatalogUpdate {
+                keep {
+                    versions = ["notused"]
+                }
+            }
+            """.trimIndent()
+        )
+
+        val toml = """
+                [versions]
+                myversion = "1.0.0"
+                notused = "1.0.0"
+                # @keep
+                notusedeither = "1.0.0"
+                notusednormarked = "1.0.0"
+
+                [libraries]
+                test = { module = "some.dependency:test", version.ref = "myversion" }
+                androidx-test-junit4 = "androidx.compose.ui:ui-test-junit4:1.1.0-rc02"
+
+                [bundles]
+                my-bundle = ["test","androidx-test-junit4"]
+        """.trimIndent()
+
+        File(tempDir.root, "gradle").mkdir()
+        File(tempDir.root, "gradle/libs.versions.toml").writeText(toml)
+
+        GradleRunner.create()
+            .withProjectDir(tempDir.root)
+            .withArguments("versionCatalogFormat")
+            .withPluginClasspath()
+            .build()
+
+        val libs = File(tempDir.root, "gradle/libs.versions.toml").readText()
+
+        assertEquals(
+            """
+                [versions]
+                myversion = "1.0.0"
+                notused = "1.0.0"
+                # @keep
+                notusedeither = "1.0.0"
+
+                [libraries]
+                androidx-test-junit4 = "androidx.compose.ui:ui-test-junit4:1.1.0-rc02"
+                test = { module = "some.dependency:test", version.ref = "myversion" }
+
+                [bundles]
+                my-bundle = [
+                    "androidx-test-junit4",
+                    "test",
+                ]
+
+            """.trimIndent(),
+            libs
+        )
+    }
 }
