@@ -1280,4 +1280,47 @@ class VersionCatalogUpdatePluginTest {
             libs
         )
     }
+
+    @Test
+    // repro for https://github.com/littlerobots/version-catalog-update-plugin/issues/61
+    fun `unused pins should be ignored when generating pin warnings`() {
+        val reportJson = tempDir.newFile()
+
+        buildFile.writeText(
+            """
+            plugins {
+                id "nl.littlerobots.version-catalog-update"
+            }
+
+            tasks.named("versionCatalogUpdate").configure {
+                it.reportJson = file("${reportJson.name}")
+            }
+            """.trimIndent()
+        )
+
+        reportJson.writeText("{}")
+
+        val toml = """
+            [libraries]
+            # @pin
+            # @keep
+            aaa = "some:library:2.0"
+
+            [plugins]
+            # @pin
+            # @keep
+            aaa = "another.id:1.0.0"
+
+        """.trimIndent()
+
+        File(tempDir.root, "gradle").mkdir()
+        File(tempDir.root, "gradle/libs.versions.toml").writeText(toml)
+
+        GradleRunner.create()
+            .withProjectDir(tempDir.root)
+            .withArguments("versionCatalogUpdate")
+            .withDebug(true)
+            .withPluginClasspath()
+            .build()
+    }
 }

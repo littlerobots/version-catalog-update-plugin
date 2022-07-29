@@ -172,9 +172,12 @@ abstract class VersionCatalogUpdateTask @Inject constructor() : DefaultTask() {
             resolvedVersions.libraries.values.any {
                 it.group == pin.group
             }
-        }.map { lib ->
-            lib to catalogWithResolvedPlugins.libraries.entries.first {
+        }.mapNotNull { lib ->
+            // can be null for kept, but unused libraries
+            catalogWithResolvedPlugins.libraries.entries.firstOrNull {
                 it.value.group == lib.group
+            }?.let {
+                lib to it
             }
         }.filter {
             it.first.version != it.second.value.version && it.first.version is VersionDefinition.Simple
@@ -217,9 +220,12 @@ abstract class VersionCatalogUpdateTask @Inject constructor() : DefaultTask() {
             resolvedVersions.plugins.values.any {
                 it.id == pin.id
             }
-        }.map { plugin ->
-            plugin to catalogWithResolvedPlugins.plugins.entries.first {
+        }.mapNotNull { plugin ->
+            // can be null for kept, but unused plugins
+            catalogWithResolvedPlugins.plugins.entries.firstOrNull() {
                 it.value.id == plugin.id
+            }?.let {
+                plugin to it
             }
         }.filter {
             it.first.version != it.second.value.version && it.first.version is VersionDefinition.Simple
