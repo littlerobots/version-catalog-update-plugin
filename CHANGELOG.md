@@ -1,4 +1,8 @@
 # Changelog
+Version 0.5.2
+-------------
+* Fix an issue with unused kept pinned dependencies causing the update task to fail [(#61)](https://github.com/littlerobots/version-catalog-update-plugin/issues/61)
+
 Version 0.5.1
 -------------
 * Fix dropping unused versions when formatting (respecting keep settings) [(#54)](https://github.com/littlerobots/version-catalog-update-plugin/issues/54)
