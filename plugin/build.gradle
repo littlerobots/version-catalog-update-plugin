@@ -22,7 +22,7 @@ gr8 {
         configuration("shade")
     }
     // Replace the regular jar with the shadowed one in the publication
-    replaceOutgoingJar(shadowedJar)
+    addShadowedVariant(shadowedJar)
     removeGradleApiFromApi()
     // Make the shadowed dependencies available during compilation/tests
     configurations.named("compileOnly").configure {
