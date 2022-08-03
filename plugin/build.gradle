@@ -23,7 +23,7 @@ gr8 {
     }
     // Replace the regular jar with the shadowed one in the publication
     replaceOutgoingJar(shadowedJar)
-
+    removeGradleApiFromApi()
     // Make the shadowed dependencies available during compilation/tests
     configurations.named("compileOnly").configure {
         extendsFrom(shadeConfiguration)
@@ -37,12 +37,18 @@ gr8 {
     }
 }
 
+// remove all runtime dependencies from publications; which is only the catalog module
+components.java.withVariantsFromConfiguration(configurations.runtimeElements) {
+    skip()
+}
+
 repositories {
     gradlePluginPortal()
 }
 
 dependencies {
     shade project(":catalog")
+    shade "org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.5.31"
     compileOnly("dev.gradleplugins:gradle-api:7.3.2")
     testImplementation 'junit:junit:4.13.2'
     testImplementation 'com.github.ben-manes:gradle-versions-plugin:0.40.0'

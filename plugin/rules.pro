@@ -1,5 +1,10 @@
 # The Gradle API jar isn't added to the classpath, ignore the missing symbols
 -ignorewarnings
+-dontwarn org.gradle.**
+-dontwarn com.github.benmanes.**
+-dontwarn javax.inject.Inject
+# kotlin reflect shouldn't be required for moshi
+-dontwarn kotlin.reflect.**
 # Allow to make some classes public so that we can repackage them without breaking package-private members
 -allowaccessmodification
 
