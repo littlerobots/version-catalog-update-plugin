@@ -2,6 +2,7 @@ plugins {
     id "org.jetbrains.kotlin.jvm"
     id 'java-gradle-plugin'
     id "com.vanniktech.maven.publish"
+    id "com.gradleup.gr8"
 }
 
 gradlePlugin {
@@ -13,13 +14,36 @@ gradlePlugin {
     }
 }
 
+def shadeConfiguration = configurations.create("shade")
+
+gr8 {
+    def shadowedJar = create("gr8") {
+        proguardFile("rules.pro")
+        configuration("shade")
+    }
+    // Replace the regular jar with the shadowed one in the publication
+    replaceOutgoingJar(shadowedJar)
+
+    // Make the shadowed dependencies available during compilation/tests
+    configurations.named("compileOnly").configure {
+        extendsFrom(shadeConfiguration)
+    }
+    configurations.named("testImplementation").configure {
+        extendsFrom(shadeConfiguration)
+    }
+
+    configurations.named("implementation").configure {
+        extendsFrom(shadeConfiguration)
+    }
+}
+
 repositories {
     gradlePluginPortal()
 }
 
 dependencies {
-    implementation project(":catalog")
-
+    shade project(":catalog")
+    compileOnly("dev.gradleplugins:gradle-api:7.3.2")
     testImplementation 'junit:junit:4.13.2'
     testImplementation 'com.github.ben-manes:gradle-versions-plugin:0.40.0'
     testImplementation(gradleTestKit())
