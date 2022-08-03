@@ -7,6 +7,7 @@
 -dontwarn kotlin.reflect.**
 # Allow to make some classes public so that we can repackage them without breaking package-private members
 -allowaccessmodification
+-dontshrink
 
 # Keep kotlin metadata so that the Kotlin compiler knows about top level functions and other things
 -keep class kotlin.Metadata { *; }
