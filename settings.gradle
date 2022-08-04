@@ -1,8 +1,8 @@
 pluginManagement {
 
     plugins {
-        id 'org.jetbrains.kotlin.jvm' version '1.5.31'
-        id "org.jetbrains.kotlin.kapt" version "1.5.31"
+        id 'org.jetbrains.kotlin.jvm' version '1.7.10'
+        id "org.jetbrains.kotlin.kapt" version "1.7.10"
         id "com.diffplug.spotless" version "5.17.1"
         id "com.vanniktech.maven.publish" version "0.18.0"
         id "com.gradleup.gr8" version "0.5"

@@ -48,7 +48,7 @@ repositories {
 
 dependencies {
     shade project(":catalog")
-    shade "org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.5.31"
+    shade "org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.7.10"
     compileOnly("dev.gradleplugins:gradle-api:7.3.2")
     testImplementation 'junit:junit:4.13.2'
     testImplementation 'com.github.ben-manes:gradle-versions-plugin:0.40.0'
