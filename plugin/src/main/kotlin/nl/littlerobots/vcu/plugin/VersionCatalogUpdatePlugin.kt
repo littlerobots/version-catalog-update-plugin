@@ -35,7 +35,7 @@ class VersionCatalogUpdatePlugin : Plugin<Project> {
         }
 
         if (project != project.rootProject) {
-            throw IllegalStateException("Should be applied to the root project only")
+            return
         }
 
         val extension = project.extensions.create(EXTENSION_NAME, VersionCatalogUpdateExtension::class.java)
