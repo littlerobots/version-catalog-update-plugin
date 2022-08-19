@@ -72,13 +72,6 @@ abstract class VersionCatalogUpdateTask @Inject constructor() : DefaultTask() {
     @get:Internal
     abstract val keep: Property<KeepConfigurationInput>
 
-    private var addDependencies: Boolean? = null
-
-    @Option(option = "add", description = "Add new dependencies in the toml file")
-    fun setAddDependenciesOption(add: Boolean) {
-        this.addDependencies = add
-    }
-
     @get:Input
     @get:Optional
     abstract val sortByKey: Property<Boolean>
@@ -130,7 +123,7 @@ abstract class VersionCatalogUpdateTask @Inject constructor() : DefaultTask() {
                     keepUnusedLibraries = keep.orNull?.keepUnusedLibraries?.getOrElse(false) ?: false,
                     keepUnusedPlugins = keep.orNull?.keepUnusedPlugins?.getOrElse(false) ?: false,
                 ),
-            addNew = (addDependencies ?: false) || createCatalog,
+            addNew = createCatalog,
             purge = true
         ).withKeepUnusedVersions(currentCatalog, keep.orNull?.keepUnusedVersions?.getOrElse(false) ?: false)
             .withKeptVersions(currentCatalog, keepRefs)
