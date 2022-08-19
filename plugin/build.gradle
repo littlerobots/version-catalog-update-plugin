@@ -9,7 +9,7 @@ plugins {
 
 gradlePlugin {
     plugins {
-        simplePlugin {
+        versionCatalogUpdatePlugin {
             id = 'nl.littlerobots.version-catalog-update'
             implementationClass = 'nl.littlerobots.vcu.plugin.VersionCatalogUpdatePlugin'
         }
