@@ -21,10 +21,12 @@ import nl.littlerobots.vcu.model.Library
 import nl.littlerobots.vcu.model.Plugin
 import nl.littlerobots.vcu.model.VersionCatalog
 import nl.littlerobots.vcu.model.VersionDefinition
+import nl.littlerobots.vcu.model.resolveVersions
 import nl.littlerobots.vcu.toml.toTomlKey
 import nl.littlerobots.vcu.versions.model.Dependency
 import nl.littlerobots.vcu.versions.model.DependencyJsonAdapter
 import nl.littlerobots.vcu.versions.model.VersionsReport
+import nl.littlerobots.vcu.versions.model.module
 import okio.buffer
 import okio.source
 import java.io.InputStream
@@ -39,17 +41,22 @@ class VersionReportParser {
     /**
      * Generate a version Catalog file from a version report
      *
-     * @param versionsJson the report json inputstream
+     * @param versionsJson the report json input stream
+     * @param currentCatalog the version catalog to check "current" versions against
      * @param useLatestVersions whether to add the latest versions in the returned [VersionCatalog] or the current versions. Defaults to true.
      */
-    fun generateCatalog(versionsJson: InputStream, useLatestVersions: Boolean = true): VersionReportResult {
+    fun generateCatalog(
+        versionsJson: InputStream,
+        currentCatalog: VersionCatalog,
+        useLatestVersions: Boolean = true
+    ): VersionReportResult {
         val adapter = moshi.adapter(VersionsReport::class.java)
         val report = versionsJson.use {
             adapter.fromJson(it.source().buffer())!!
         }
 
         val dependencies = (
-            report.current.dependencies +
+            report.current.dependencies.filterUnusedTransitive(currentCatalog) +
                 report.exceeded.dependencies +
                 report.outdated.dependencies +
                 report.unresolved.dependencies
@@ -88,6 +95,26 @@ class VersionReportParser {
             report.outdated.dependencies.toSet(),
             VersionCatalog(emptyMap(), libraries, emptyMap(), plugins)
         )
+    }
+
+    /**
+     * Transitive dependencies that are not directly used are reported as "current".
+     * If any of these "current" versions do not match what's in the supplied catalog, it must be unused and we filter
+     * that dependency.
+     *
+     * @param catalog the catalog to check the current version for
+     **/
+    private fun List<Dependency>.filterUnusedTransitive(catalog: VersionCatalog): List<Dependency> {
+        val resolvedCatalog = catalog.resolveVersions()
+        return filterNot { dependency ->
+            // if we can find a definition for this module w/ an exact version that is different from
+            // the dependency version, omit it.
+            resolvedCatalog.libraries.values.any {
+                it.module == dependency.module &&
+                    it.version is VersionDefinition.Simple &&
+                    it.version.version != dependency.currentVersion
+            }
+        }
     }
 }
 
