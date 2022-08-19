@@ -67,6 +67,11 @@ abstract class KeepConfigurationInput @Inject constructor(keepConfiguration: Kee
     }
 }
 
+internal val KeepConfigurationInput.keepingAnything: Boolean
+    get() = keepUnusedVersions.getOrElse(false) ||
+        keepUnusedLibraries.getOrElse(false) ||
+        keepUnusedPlugins.getOrElse(false)
+
 internal fun VersionRefConfigurationInput.getVersionCatalogRefs(): Set<VersionCatalogRef> {
     return (
         versions.convention(emptySet()).get()
