@@ -62,7 +62,7 @@ in the version catalog file will be considered unused. This is [configurable](#c
 
 ### Interactive mode
 Updating all dependencies at once is without testing is generally not recommended. When using a version control system, changes to the version catalog can be rolled back
-by comparing diff, but for large updates this may be inconvenient. In these cases, interactive mode might help.
+by comparing a diff, but for large updates this may be inconvenient. In these cases, interactive mode might help.
 
 When running `./gradlew versionCatalogUpdate --interactive` the `libs.versions.toml` file will not be directly be updated, in stead
 a `libs.versions.updates.toml` file will be created containing the entries that would be updated and any pinned entries
