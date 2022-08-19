@@ -19,6 +19,7 @@ import org.gradle.api.Project
 import org.gradle.testfixtures.ProjectBuilder
 import org.gradle.testkit.runner.GradleRunner
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -259,7 +260,6 @@ class VersionCatalogUpdatePluginTest {
             """.trimIndent()
         )
 
-        // empty report
         reportJson.writeText(
             """
             {
@@ -1322,5 +1322,287 @@ class VersionCatalogUpdatePluginTest {
             .withDebug(true)
             .withPluginClasspath()
             .build()
+    }
+
+    @Test
+    fun `interactive mode stages changes`() {
+        val reportJson = tempDir.newFile()
+
+        buildFile.writeText(
+            """
+            plugins {
+                id "nl.littlerobots.version-catalog-update"
+            }
+
+            tasks.named("versionCatalogUpdate").configure {
+                it.reportJson = file("${reportJson.name}")
+            }
+            """.trimIndent()
+        )
+
+        reportJson.writeText(
+            """
+            {
+                "outdated": {
+                    "dependencies": [
+                        {
+                            "group": "io.coil-kt",
+                            "available": {
+                                "release": null,
+                                "milestone": "2.0.0-alpha06",
+                                "integration": null
+                            },
+                            "userReason": null,
+                            "version": "2.0.0-alpha05",
+                            "projectUrl": "https://github.com/coil-kt/coil",
+                            "name": "coil-compose"
+                        },
+                        {
+                            "group": "nl.littlerobots.version-catalog-update",
+                            "available": {
+                                "release": null,
+                                "milestone": "0.2.0",
+                                "integration": null
+                            },
+                            "userReason": null,
+                            "version": "0.1.0",
+                            "name": "nl.littlerobots.version-catalog-update.gradle.plugin"
+                        }
+
+                    ]
+                }
+            }
+            """.trimIndent()
+        )
+
+        val toml = """
+            [versions]
+            coil = "1.0.0"
+
+            [libraries]
+            test = { module = "io.coil-kt:coil-compose", version.ref = "coil" }
+
+            [plugins]
+            vcu = "nl.littlerobots.version-catalog-update:1.0"
+        """.trimIndent()
+
+        File(tempDir.root, "gradle").mkdir()
+        File(tempDir.root, "gradle/libs.versions.toml").writeText(toml)
+
+        GradleRunner.create()
+            .withProjectDir(tempDir.root)
+            .withArguments("versionCatalogUpdate", "--interactive")
+            .withPluginClasspath()
+            .build()
+
+        val stagingToml = File(tempDir.root, "gradle/libs.versions.updates.toml")
+        assertTrue(stagingToml.exists())
+
+        val lines = stagingToml.readLines()
+        val fileWithoutDateHeader = lines.drop(1).joinToString(separator = "\n")
+
+        assertTrue(lines.first().startsWith("# Version catalog updates generated at "))
+
+        assertEquals(
+            """
+            #
+            # Contents of this file will be applied to libs.versions.toml when running versionCatalogApplyUpdates.
+            #
+            # Comments will not be applied to the version catalog when updating.
+            # To prevent a version upgrade, comment out the entry or remove it.
+            #
+            [libraries]
+            # From version 1.0.0 --> 2.0.0-alpha06
+            test = "io.coil-kt:coil-compose:2.0.0-alpha06"
+
+            [plugins]
+            # From version 1.0 --> 0.2.0
+            vcu = "nl.littlerobots.version-catalog-update:0.2.0"
+            """.trimIndent(),
+            fileWithoutDateHeader
+        )
+    }
+
+    @Test
+    fun `interactive mode without updates does not create staging file`() {
+        val reportJson = tempDir.newFile()
+
+        buildFile.writeText(
+            """
+            plugins {
+                id "nl.littlerobots.version-catalog-update"
+            }
+
+            tasks.named("versionCatalogUpdate").configure {
+                it.reportJson = file("${reportJson.name}")
+            }
+            """.trimIndent()
+        )
+
+        reportJson.writeText("{}")
+
+        val toml = """
+            [versions]
+            coil = "1.0.0"
+
+            [libraries]
+            test = { module = "io.coil-kt:coil-compose", version.ref = "coil" }
+
+            [plugins]
+            vcu = "nl.littlerobots.version-catalog-update:1.0"
+        """.trimIndent()
+
+        File(tempDir.root, "gradle").mkdir()
+        File(tempDir.root, "gradle/libs.versions.toml").writeText(toml)
+
+        GradleRunner.create()
+            .withProjectDir(tempDir.root)
+            .withArguments("versionCatalogUpdate", "--interactive")
+            .withPluginClasspath()
+            .build()
+
+        val stagingToml = File(tempDir.root, "gradle/libs.versions.updates.toml")
+        assertFalse(stagingToml.exists())
+    }
+
+    @Test
+    fun `interactive mode marks pinned changes`() {
+        val reportJson = tempDir.newFile()
+
+        buildFile.writeText(
+            """
+            plugins {
+                id "nl.littlerobots.version-catalog-update"
+            }
+
+            tasks.named("versionCatalogUpdate").configure {
+                it.reportJson = file("${reportJson.name}")
+            }
+            """.trimIndent()
+        )
+
+        reportJson.writeText(
+            """
+            {
+                "outdated": {
+                    "dependencies": [
+                        {
+                            "group": "io.coil-kt",
+                            "available": {
+                                "release": null,
+                                "milestone": "2.0.0-alpha06",
+                                "integration": null
+                            },
+                            "userReason": null,
+                            "version": "2.0.0-alpha05",
+                            "projectUrl": "https://github.com/coil-kt/coil",
+                            "name": "coil-compose"
+                        },
+                        {
+                            "group": "nl.littlerobots.version-catalog-update",
+                            "available": {
+                                "release": null,
+                                "milestone": "0.2.0",
+                                "integration": null
+                            },
+                            "userReason": null,
+                            "version": "0.1.0",
+                            "name": "nl.littlerobots.version-catalog-update.gradle.plugin"
+                        }
+
+                    ]
+                }
+            }
+            """.trimIndent()
+        )
+
+        val toml = """
+            [versions]
+            coil = "1.0.0"
+
+            [libraries]
+            # @pin
+            test = { module = "io.coil-kt:coil-compose", version.ref = "coil" }
+
+            [plugins]
+            # @pin
+            vcu = "nl.littlerobots.version-catalog-update:1.0"
+        """.trimIndent()
+
+        File(tempDir.root, "gradle").mkdir()
+        File(tempDir.root, "gradle/libs.versions.toml").writeText(toml)
+
+        GradleRunner.create()
+            .withProjectDir(tempDir.root)
+            .withArguments("versionCatalogUpdate", "--interactive")
+            .withPluginClasspath()
+            .build()
+
+        val stagingToml = File(tempDir.root, "gradle/libs.versions.updates.toml")
+        assertTrue(stagingToml.exists())
+
+        val lines = stagingToml.readLines()
+        val fileWithoutDateHeader = lines.drop(1).joinToString(separator = "\n")
+
+        assertTrue(lines.first().startsWith("# Version catalog updates generated at "))
+
+        assertEquals(
+            """
+            #
+            # Contents of this file will be applied to libs.versions.toml when running versionCatalogApplyUpdates.
+            #
+            # Comments will not be applied to the version catalog when updating.
+            # To prevent a version upgrade, comment out the entry or remove it.
+            #
+            [libraries]
+            # @pinned version 1.0.0 --> 2.0.0-alpha06
+            #test = "io.coil-kt:coil-compose:2.0.0-alpha06"
+
+            [plugins]
+            # @pinned version 1.0 --> 0.2.0
+            #vcu = "nl.littlerobots.version-catalog-update:0.2.0"
+            """.trimIndent(),
+            fileWithoutDateHeader
+        )
+    }
+
+    @Test
+    fun `normal update fails when staging file is present`() {
+        val reportJson = tempDir.newFile()
+
+        buildFile.writeText(
+            """
+            plugins {
+                id "nl.littlerobots.version-catalog-update"
+            }
+
+            tasks.named("versionCatalogUpdate").configure {
+                it.reportJson = file("${reportJson.name}")
+            }
+            """.trimIndent()
+        )
+
+        reportJson.writeText("{}")
+
+        val toml = """
+            [versions]
+            coil = "1.0.0"
+
+            [libraries]
+            test = { module = "io.coil-kt:coil-compose", version.ref = "coil" }
+        """.trimIndent()
+
+        File(tempDir.root, "gradle").mkdir()
+        File(tempDir.root, "gradle/libs.versions.toml").writeText(toml)
+        val stagingToml = File(tempDir.root, "gradle/libs.versions.updates.toml")
+        stagingToml.writeText("# dummy file")
+
+        val result = GradleRunner.create()
+            .withProjectDir(tempDir.root)
+            .withArguments("versionCatalogUpdate")
+            .withPluginClasspath()
+            .buildAndFail()
+
+        assertTrue(result.output.contains("libs.versions.updates.toml exists, did you mean to run the versionCatalogApplyUpdates task to apply the updates?"))
     }
 }

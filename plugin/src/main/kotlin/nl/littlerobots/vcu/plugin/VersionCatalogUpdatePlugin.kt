@@ -44,6 +44,7 @@ class VersionCatalogUpdatePlugin : Plugin<Project> {
 
         val catalogUpdatesTask = project.tasks.register(UPDATE_TASK_NAME, VersionCatalogUpdateTask::class.java)
         val catalogFormatTask = project.tasks.register(FORMAT_TASK_NAME, VersionCatalogFormatTask::class.java)
+        val catalogApplyUpdatesTask = project.tasks.register(VersionCatalogApplyUpdatesTask.TASK_NAME, VersionCatalogApplyUpdatesTask::class.java)
 
         catalogUpdatesTask.configure { task ->
             task.reportJson.set(reportJson)
@@ -57,6 +58,15 @@ class VersionCatalogUpdatePlugin : Plugin<Project> {
         }
 
         catalogFormatTask.configure { task ->
+            task.sortByKey.set(extension.sortByKey)
+            task.keep.set(project.objects.newInstance(KeepConfigurationInput::class.java, extension.keep))
+
+            if (!task.catalogFile.isPresent) {
+                task.catalogFile.set(project.rootProject.file("gradle/libs.versions.toml"))
+            }
+        }
+
+        catalogApplyUpdatesTask.configure { task ->
             task.sortByKey.set(extension.sortByKey)
             task.keep.set(project.objects.newInstance(KeepConfigurationInput::class.java, extension.keep))
 
