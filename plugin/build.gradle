@@ -3,14 +3,35 @@ import com.github.jengelman.gradle.plugins.shadow.tasks.ConfigureShadowRelocatio
 plugins {
     id "org.jetbrains.kotlin.jvm"
     id 'java-gradle-plugin'
-    id "com.vanniktech.maven.publish"
+    id "com.vanniktech.maven.publish.base"
+    id 'com.gradle.plugin-publish' version '1.0.0'
     id 'com.github.johnrengelman.shadow'
 }
 
+pluginBundle {  // Removed in Gradle 8+
+    website = "https://github.com/littlerobots/version-catalog-update-plugin"
+    vcsUrl = "https://github.com/littlerobots/version-catalog-update-plugin.git"
+
+    tags = ['version', 'catalog', 'dependencies', 'versions']
+}
+
+plugins.withId("com.vanniktech.maven.publish.base") {
+    group = ext.GROUP
+    version = ext.VERSION_NAME
+    mavenPublishing {
+        publishToMavenCentral("DEFAULT")
+        signAllPublications()
+        pomFromGradleProperties()
+    }
+}
+
 gradlePlugin {
+
     plugins {
-        versionCatalogUpdatePlugin {
+        versionCatalogUpdate {
             id = 'nl.littlerobots.version-catalog-update'
+            displayName = 'A plugin that updates the version catalog file.'
+            description = 'Provides tasks to format and update the version catalog file with the latest dependency versions.'
             implementationClass = 'nl.littlerobots.vcu.plugin.VersionCatalogUpdatePlugin'
         }
     }
@@ -31,6 +52,7 @@ shadowJar {
     relocate 'kotlin', 'kotlin'
 }
 
+tasks.shadowJar.archiveClassifier.set("")
 tasks.shadowJar.dependsOn tasks.relocateShadowJar
 configurations.api.dependencies.remove dependencies.gradleApi()
 
