@@ -37,7 +37,6 @@ import org.gradle.api.Project
 import org.gradle.api.artifacts.ModuleIdentifier
 import org.gradle.api.artifacts.ResolvedArtifact
 import org.gradle.api.file.RegularFileProperty
-import org.gradle.api.model.ObjectFactory
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputFile
@@ -53,11 +52,10 @@ import java.io.File
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.jar.JarFile
-import javax.inject.Inject
 
 private const val PROPERTIES_SUFFIX = ".properties"
 
-abstract class VersionCatalogUpdateTask @Inject constructor(private val objectFactory: ObjectFactory) : DefaultTask() {
+abstract class VersionCatalogUpdateTask : DefaultTask() {
     @get:PathSensitive(PathSensitivity.RELATIVE)
     @get:InputFile
     abstract val reportJson: RegularFileProperty
