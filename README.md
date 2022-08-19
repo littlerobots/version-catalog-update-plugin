@@ -221,11 +221,9 @@ kotlin = "1.6.10"
 my-library = "com.example.library:1.0"
 ```
 
-In addition, you can add new dependencies using `./gradlew versionCatalogUpdate --add`. Note that this will probably also add dependencies that
-are not directly declared in your build files, such as internal dependencies or dependencies added by plugins, so generally it is adviced to use this option with care.
-
 ## Snapshot versions
 For snapshots versions add the Sonatype snapshot repository `https://oss.sonatype.org/content/repositories/snapshots/`.
 
 ## Known issues and limitations
-* When adding dependencies, "internal" dependencies or plugins might be added to the catalog. It is recommended to leave the default set to `false` for that reason. Usually after the initial version catalog has been setup, new dependencies should be added to the toml file manually anyway.
+* When creating the catalog from existing dependencies, "internal" dependencies or plugins might be added to the catalog.
+* The TOML file will be updated and formatted by this plugin; this is by design. If this is undesirable then the  [versions plugin](https://github.com/ben-manes/gradle-versions-plugin) is probably what you are looking for.
