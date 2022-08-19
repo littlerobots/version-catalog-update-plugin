@@ -1,4 +1,8 @@
 # Changelog
+Version 0.5.4
+-------------
+* Shadow (bundle) dependencies to prevent conflicts with other plugins [(#39)](https://github.com/littlerobots/version-catalog-update-plugin/issues/39)
+
 Version 0.5.3
 -------------
 * Fix an issue with unused kept pinned dependencies causing the update task to fail [(#61)](https://github.com/littlerobots/version-catalog-update-plugin/issues/61)
