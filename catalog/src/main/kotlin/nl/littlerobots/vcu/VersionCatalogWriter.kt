@@ -15,6 +15,7 @@
 */
 package nl.littlerobots.vcu
 
+import nl.littlerobots.vcu.model.HasVersion
 import nl.littlerobots.vcu.model.Library
 import nl.littlerobots.vcu.model.Plugin
 import nl.littlerobots.vcu.model.VersionCatalog
@@ -25,7 +26,7 @@ import java.io.Writer
 private const val BUNDLE_INDENT = 4
 
 class VersionCatalogWriter {
-    fun write(versionCatalog: VersionCatalog, writer: Writer) {
+    fun write(versionCatalog: VersionCatalog, writer: Writer, commentEntry: (HasVersion) -> Boolean = { false }) {
         val printWriter = PrintWriter(writer)
         if (versionCatalog.versions.isNotEmpty()) {
             for (line in versionCatalog.versionComments.tableComments) {
@@ -50,6 +51,9 @@ class VersionCatalogWriter {
             for (library in versionCatalog.libraries) {
                 for (comment in versionCatalog.libraryComments.getCommentsForKey(library.key)) {
                     printWriter.println(comment)
+                }
+                if (commentEntry(library.value)) {
+                    printWriter.print("#")
                 }
                 printWriter.println("""${library.key} = ${formatLibrary(library.value)}""")
             }
@@ -90,6 +94,9 @@ class VersionCatalogWriter {
                 for (comment in versionCatalog.pluginComments.getCommentsForKey(plugin.key)) {
                     printWriter.println(comment)
                 }
+                if (commentEntry(plugin.value)) {
+                    printWriter.print("#")
+                }
                 printWriter.println("${plugin.key} = ${formatPlugin(plugin.value)}")
             }
         }
@@ -111,6 +118,7 @@ class VersionCatalogWriter {
                 append(" } }")
             }.toString()
         }
+
         is VersionDefinition.Unspecified -> "{ id = \"${plugin.id}\" }"
     }
 
@@ -132,6 +140,7 @@ class VersionCatalogWriter {
                 append(" } }")
             }.toString()
         }
+
         is VersionDefinition.Unspecified -> "{ module = \"${library.module}\" }"
     }
 
@@ -142,6 +151,7 @@ class VersionCatalogWriter {
                 "${it.key} = \"${it.value}\""
             }
         }
+
         else -> throw IllegalStateException("Invalid version definition $versionDefinition")
     }
 }

@@ -17,6 +17,8 @@ package nl.littlerobots.vcu.plugin
 
 import nl.littlerobots.vcu.VersionCatalogParser
 import nl.littlerobots.vcu.VersionCatalogWriter
+import nl.littlerobots.vcu.model.Comments
+import nl.littlerobots.vcu.model.HasVersion
 import nl.littlerobots.vcu.model.Library
 import nl.littlerobots.vcu.model.Plugin
 import nl.littlerobots.vcu.model.VersionCatalog
@@ -47,12 +49,13 @@ import org.gradle.api.tasks.TaskAction
 import org.gradle.api.tasks.options.Option
 import org.gradle.internal.component.external.model.ModuleComponentArtifactIdentifier
 import java.io.File
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 import java.util.jar.JarFile
-import javax.inject.Inject
 
 private const val PROPERTIES_SUFFIX = ".properties"
 
-abstract class VersionCatalogUpdateTask @Inject constructor() : DefaultTask() {
+abstract class VersionCatalogUpdateTask : DefaultTask() {
     @get:PathSensitive(PathSensitivity.RELATIVE)
     @get:InputFile
     abstract val reportJson: RegularFileProperty
@@ -64,6 +67,10 @@ abstract class VersionCatalogUpdateTask @Inject constructor() : DefaultTask() {
     @set:Option(option = "create", description = "Create libs.versions.toml based on current dependencies")
     @get:Internal
     abstract var createCatalog: Boolean
+
+    @set:Option(option = "interactive", description = "Stage changes before applying to the toml file")
+    @get:Internal
+    abstract var interactive: Boolean
 
     @get:Input
     abstract val pins: Property<PinsConfigurationInput>
@@ -91,6 +98,12 @@ abstract class VersionCatalogUpdateTask @Inject constructor() : DefaultTask() {
         val versionsReportResult =
             reportParser.generateCatalog(reportJson.get().asFile.inputStream(), useLatestVersions = !createCatalog)
         val catalogFromDependencies = versionsReportResult.catalog
+
+        if (interactive && createCatalog) {
+            throw GradleException("--interactive cannot be used with --create")
+        }
+
+        checkInteractiveState()
 
         val currentCatalog = if (catalogFile.get().exists()) {
             if (createCatalog) {
@@ -135,9 +148,6 @@ abstract class VersionCatalogUpdateTask @Inject constructor() : DefaultTask() {
                 }
             }
 
-        val writer = VersionCatalogWriter()
-        writer.write(updatedCatalog, catalogFile.get().writer())
-
         if (versionsReportResult.exceeded.isNotEmpty() && !createCatalog) {
             emitExceededWarning(versionsReportResult.exceeded, currentCatalog)
         }
@@ -145,6 +155,170 @@ abstract class VersionCatalogUpdateTask @Inject constructor() : DefaultTask() {
         checkForUpdatesForLibrariesWithVersionCondition(updatedCatalog, versionsReportResult.outdated)
         checkForUpdatedPinnedLibraries(updatedCatalog, catalogWithResolvedPlugins, pins)
         checkForUpdatedPinnedPlugins(updatedCatalog, catalogWithResolvedPlugins, pins)
+
+        if (interactive) {
+            writeUpdatesFile(
+                currentCatalog,
+                updatedCatalog,
+                getPinsWithUpdatedVersions(catalogWithResolvedPlugins, pins)
+            )
+            if (keep.orNull?.keepUnusedVersions?.getOrElse(false) == false) {
+                // remove entries that are no longer in the update
+                val c = currentCatalog.copy(
+                    libraries = currentCatalog.libraries.filterValues { library ->
+                        updatedCatalog.libraries.values.any {
+                            it.group == library.group
+                        }
+                    },
+                    plugins = currentCatalog.plugins.filterValues { plugin ->
+                        updatedCatalog.plugins.values.any {
+                            it.id == plugin.id
+                        }
+                    }
+                )
+                // update again to fix bundles and versions
+                val currentPruned = currentCatalog.updateFrom(c, purge = true)
+                val writer = VersionCatalogWriter()
+                // write out the current catalog without sorting it
+                writer.write(currentPruned, catalogFile.get().writer())
+            }
+        } else {
+            val writer = VersionCatalogWriter()
+            writer.write(updatedCatalog, catalogFile.get().writer())
+        }
+    }
+
+    /**
+     * Write a version catalog diff file
+     * @param currentCatalog the version catalog before updates
+     * @param updatedCatalog the version catalog updated, considering pins & keeps etc,
+     * @param pins the pins holding the _updated_ version from [getPinsWithUpdatedVersions]
+     */
+    private fun writeUpdatesFile(currentCatalog: VersionCatalog, updatedCatalog: VersionCatalog, pins: Pins) {
+        val currentResolved = currentCatalog.resolveVersions()
+        // the update as if the pins are reverted, e.g. all possible updates
+        val updatedResolved = updatedCatalog
+            .updateFrom(updatedCatalog.withPins(pins), purge = false)
+            .resolveVersions()
+        val catalogFile = this.catalogFile.get()
+
+        val diff = updatedResolved.copy(
+            libraries = updatedResolved.libraries.filterNot { entry ->
+                currentResolved.libraries.values.contains(entry.value)
+            },
+            plugins = updatedResolved.plugins.filterNot { entry ->
+                currentResolved.plugins.values.contains(entry.value)
+            },
+            bundles = emptyMap(), versions = emptyMap()
+        )
+
+        if (diff.plugins.isEmpty() && diff.libraries.isEmpty() && pins.libraries.isEmpty() && pins.plugins.isEmpty()) {
+            project.logger.warn("There are no updates available")
+            return
+        }
+
+        val tableComments = """
+                    # Version catalog updates generated at ${
+        LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
+        }
+                    #
+                    # Contents of this file will be applied to ${catalogFile.name} when running ${VersionCatalogApplyUpdatesTask.TASK_NAME}.
+                    #
+                    # Comments will not be applied to the version catalog when updating.
+                    # To prevent a version upgrade, comment out the entry or remove it.
+                    #
+        """.trimIndent().lines()
+
+        fun getUpdateComment(dependencyEntry: Map.Entry<String, HasVersion>, dependenciesMap: Map<String, HasVersion>): List<String> {
+            val previousVersion = (dependenciesMap[dependencyEntry.key]?.version as? VersionDefinition.Simple)?.version
+            return previousVersion?.let { version ->
+                dependenciesMap[dependencyEntry.key]?.version?.let { versionDefinition ->
+                    val currentVersionGroup = if (versionDefinition is VersionDefinition.Reference) {
+                        " (${versionDefinition.ref})"
+                    } else {
+                        ""
+                    }
+                    val matchingPin = when (val dependency = dependencyEntry.value) {
+                        is Library -> pins.libraries.firstOrNull { it.group == dependency.group }
+                        is Plugin -> pins.plugins.firstOrNull { it.id == dependency.id }
+                        else -> error("Unexpected dependency type ${dependency.javaClass.name}")
+                    }
+                    val updatedVersion = (dependencyEntry.value.version as VersionDefinition.Simple).version
+                    if (matchingPin != null) {
+                        listOf("# @pinned version $version$currentVersionGroup --> $updatedVersion")
+                    } else {
+                        listOf("# From version $version$currentVersionGroup --> $updatedVersion")
+                    }
+                }
+            } ?: emptyList()
+        }
+
+        val diffWithComments = diff.copy(
+            libraryComments = Comments(
+                tableComments = tableComments,
+                entryComments = diff.libraries.map { entry ->
+                    entry.key to getUpdateComment(entry, currentResolved.libraries)
+                }.toMap()
+            ),
+            pluginComments = Comments(
+                tableComments = if (diff.libraries.isEmpty()) tableComments else emptyList(),
+                entryComments = diff.plugins.map { entry ->
+                    entry.key to getUpdateComment(entry, currentResolved.plugins)
+                }.toMap()
+            )
+        )
+
+        val updateFile = catalogFile.updatesFile
+
+        val writer = VersionCatalogWriter()
+        updateFile.writer().use { outputStreamWriter ->
+            writer.write(diffWithComments, outputStreamWriter) { versioned ->
+                when (versioned) {
+                    is Library -> pins.libraries.any { it.group == versioned.group }
+                    is Plugin -> pins.plugins.any { it.id == versioned.id }
+                    else -> false
+                }
+            }
+        }
+        project.logger.warn("Updates are written to ${updateFile.name}. Run the ${VersionCatalogApplyUpdatesTask.TASK_NAME} task to apply updates to ${catalogFile.name}")
+    }
+
+    private fun checkInteractiveState() {
+        val updateFile = catalogFile.orNull?.updatesFile
+        if (updateFile?.exists() == true) {
+            throw GradleException("${updateFile.absolutePath} exists, did you mean to run the ${VersionCatalogApplyUpdatesTask.TASK_NAME} task to apply the updates?")
+        }
+    }
+
+    /**
+     * Return pins that can be updated
+     * @param catalog the version catalog to use as a source for library and plugin updates
+     * @param pins the pins based on the current version in the version catalog
+     */
+    private fun getPinsWithUpdatedVersions(catalog: VersionCatalog, pins: Pins): Pins {
+        return Pins(
+            libraries = pins.libraries
+                .filter { pinned ->
+                    catalog.libraries.values.filter {
+                        it.version is VersionDefinition.Simple
+                    }.any {
+                        it.group == pinned.group && it.version != pinned.version
+                    }
+                }.map { pinned ->
+                    catalog.libraries.values.first { it.group == pinned.group }
+                }.toSet(),
+            plugins = pins.plugins.filter { pinned ->
+                catalog.plugins.values.filter {
+                    it.version is VersionDefinition.Simple
+                }.any {
+                    it.id == pinned.id && it.version != pinned.version
+                }
+            }.map { pinned ->
+                catalog.plugins.values.first {
+                    it.id == pinned.id
+                }
+            }.toSet()
+        )
     }
 
     /**
@@ -552,3 +726,6 @@ private fun MutableMap<String, Library>.removeLibraries(libs: Collection<Library
         }
     }
 }
+
+val File.updatesFile: File
+    get() = File(parentFile, "$nameWithoutExtension.updates.$extension")

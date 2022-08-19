@@ -60,6 +60,49 @@ To update the catalog file at any time run `./gradlew versionCatalogUpdate`. Thi
 No new entries will be added to the catalog, but unused entries will be removed. Any dependency that is not reported by the versions plugin, but still appears
 in the version catalog file will be considered unused. This is [configurable](#configuration).
 
+### Interactive mode
+Updating all dependencies at once is without testing is generally not recommended. When using a version control system, changes to the version catalog can be rolled back
+by comparing a diff, but for large updates this may be inconvenient. In these cases, interactive mode might help.
+
+When running `./gradlew versionCatalogUpdate --interactive` the `libs.versions.toml` file will not be directly be updated, in stead
+a `libs.versions.updates.toml` file will be created containing the entries that would be updated and any pinned entries
+that can be updated. This file uses the short form dependency notation without any `version.ref`s. Pinned entries are commented
+by default, all other entries are uncommented. To skip updating an entry in the TOML file it can be commented out or removed completely.
+It's also possible to edit the entry if that's desired.
+
+To apply the changes to the `libs.versions.toml` file, run `./gradlew versionCatalogApplyUpdates`. This will also
+update `version.ref`s and `versions` in the same way as `versionCatalogUpdate` would.
+
+Note that any comments and any other TOML tables than `[libraries]` and `[plugins]` will be ignored when applying the changes.
+
+<details>
+<summary>Example libs.versions.updates.toml</summary>
+
+```
+# Version catalog updates generated at 2022-08-19T16:00:29.757349
+#
+# Contents of this file will be applied to libs.versions.toml when running versionCatalogApplyUpdates.
+#
+# Comments will not be applied to the version catalog when updating.
+# To prevent a version upgrade, comment out the entry or remove it.
+#
+[libraries]
+# @pinned version 4.9.3 (antlr) --> 4.10.1
+#antlr = "org.antlr:antlr4:4.10.1"
+# From version 2.5.4 (asciidoctorj) --> 2.5.5
+asciidoctorj = "org.asciidoctor:asciidoctorj:2.5.5"
+# From version 2.1.2 (asciidoctorjPdf) --> 2.1.6
+asciidoctorjPdf = "org.asciidoctor:asciidoctorj-pdf:2.1.6"
+
+[plugins]
+# Updated from version 1.20.0
+detekt = "io.gitlab.arturbosch.detekt:1.21.0"
+# Updated from version 1.7.0
+dokka = "org.jetbrains.dokka:1.7.10"
+```
+
+</details>
+
 ### Formatting only
 To format the existing `libs.versions.toml` file without updating library versions, you can run `./gradlew versionCatalogFormat`.
 This will format the version catalog and create new version references, just like the `versionCatalogUpdate` task would do.
