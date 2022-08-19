@@ -1,7 +1,10 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ConfigureShadowRelocation
+
 plugins {
     id "org.jetbrains.kotlin.jvm"
     id 'java-gradle-plugin'
     id "com.vanniktech.maven.publish"
+    id 'com.github.johnrengelman.shadow'
 }
 
 gradlePlugin {
@@ -13,13 +16,38 @@ gradlePlugin {
     }
 }
 
+
+task relocateShadowJar(type: ConfigureShadowRelocation) {
+    target = tasks.shadowJar
+}
+
+shadowJar {
+    dependencies {
+        exclude(dependency('org.jetbrains.kotlin:.*'))
+    }
+    mergeServiceFiles()
+    // don't relocate these
+    relocate 'nl.littlerobots.vcu', 'nl.littlerobots.vcu'
+    relocate 'kotlin', 'kotlin'
+}
+
+tasks.shadowJar.dependsOn tasks.relocateShadowJar
+configurations.api.dependencies.remove dependencies.gradleApi()
+
 repositories {
     gradlePluginPortal()
 }
 
-dependencies {
-    implementation project(":catalog")
+// remove all runtime dependencies from publications; which is only the catalog module
+components.java.withVariantsFromConfiguration(configurations.runtimeElements) {
+    skip()
+}
 
+dependencies {
+    implementation project(path: ":catalog")
+    //noinspection GradlePackageUpdate
+    shadow "org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.5.31"
+    shadow gradleApi()
     testImplementation 'junit:junit:4.13.2'
     testImplementation 'com.github.ben-manes:gradle-versions-plugin:0.40.0'
     testImplementation(gradleTestKit())
