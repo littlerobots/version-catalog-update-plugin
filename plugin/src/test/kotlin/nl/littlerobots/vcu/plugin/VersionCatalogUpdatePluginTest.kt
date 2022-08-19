@@ -1605,4 +1605,57 @@ class VersionCatalogUpdatePluginTest {
 
         assertTrue(result.output.contains("libs.versions.updates.toml exists, did you mean to run the versionCatalogApplyUpdates task to apply the updates?"))
     }
+
+    @Test // repro for https://github.com/littlerobots/version-catalog-update-plugin/issues/71
+    fun `Transitive dependencies reported as current with different versions should be treated as unused`() {
+        val reportJson = tempDir.newFile()
+
+        buildFile.writeText(
+            """
+            plugins {
+                id "nl.littlerobots.version-catalog-update"
+            }
+
+            tasks.named("versionCatalogUpdate").configure {
+                it.reportJson = file("${reportJson.name}")
+            }
+            """.trimIndent()
+        )
+
+        reportJson.writeText(
+            """
+                        {
+                "current": {
+                    "dependencies": [
+                        {
+                            "group": "androidx.activity",
+                            "userReason": null,
+                            "version": "1.4.0",
+                            "projectUrl": "https://developer.android.com/jetpack/androidx/releases/activity#1.4.0",
+                            "name": "activity-compose"
+                        }
+                   ]
+                }
+                }
+            """.trimIndent()
+        )
+
+        val toml = """
+            [libraries]
+            # an entry that is never used as a direct dependency
+            unused = "androidx.activity:activity-compose:1.6.0"
+        """.trimIndent()
+
+        val tomlFile = File(tempDir.root, "gradle/libs.versions.toml")
+        File(tempDir.root, "gradle").mkdir()
+        tomlFile.writeText(toml)
+
+        GradleRunner.create()
+            .withProjectDir(tempDir.root)
+            .withArguments("versionCatalogUpdate")
+            .withPluginClasspath()
+            .build()
+
+        assertEquals("", tomlFile.readText())
+    }
 }

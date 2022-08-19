@@ -15,14 +15,24 @@
 */
 package nl.littlerobots.vcu.versions
 
+import nl.littlerobots.vcu.VersionCatalogParser
 import nl.littlerobots.vcu.VersionCatalogWriter
 import nl.littlerobots.vcu.model.Library
 import nl.littlerobots.vcu.model.Plugin
+import nl.littlerobots.vcu.model.VersionCatalog
 import nl.littlerobots.vcu.model.VersionDefinition
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.StringWriter
+
+private val EMPTY_CATALOG =
+    VersionCatalog(
+        versions = emptyMap(),
+        libraries = emptyMap(),
+        bundles = emptyMap(),
+        plugins = emptyMap()
+    )
 
 class VersionReportParserTest {
     @Test
@@ -43,7 +53,7 @@ class VersionReportParserTest {
         """.trimIndent()
         val updater = VersionReportParser()
 
-        val catalog = updater.generateCatalog(report.byteInputStream()).catalog
+        val catalog = updater.generateCatalog(report.byteInputStream(), EMPTY_CATALOG).catalog
 
         assertEquals(1, catalog.libraries.size)
         assertEquals(
@@ -80,7 +90,7 @@ class VersionReportParserTest {
         """.trimIndent()
         val updater = VersionReportParser()
 
-        val catalog = updater.generateCatalog(report.byteInputStream()).catalog
+        val catalog = updater.generateCatalog(report.byteInputStream(), EMPTY_CATALOG).catalog
 
         assertEquals(1, catalog.libraries.size)
         assertEquals(
@@ -115,7 +125,7 @@ class VersionReportParserTest {
 
         val updater = VersionReportParser()
 
-        val result = updater.generateCatalog(report.byteInputStream())
+        val result = updater.generateCatalog(report.byteInputStream(), EMPTY_CATALOG)
 
         assertEquals(1, result.catalog.libraries.size)
         // for exceeded the "latest" version is the preferred value in the toml file, even if the dependency is
@@ -149,7 +159,7 @@ class VersionReportParserTest {
         """.trimIndent()
         val updater = VersionReportParser()
 
-        val catalog = updater.generateCatalog(report.byteInputStream()).catalog
+        val catalog = updater.generateCatalog(report.byteInputStream(), EMPTY_CATALOG).catalog
 
         val writer = VersionCatalogWriter()
         val output = StringWriter()
@@ -163,5 +173,40 @@ class VersionReportParserTest {
             ),
             catalog.plugins["com-github-ben-manes-versions"]
         )
+    }
+
+    @Test
+    fun `removes dependencies that are incorrectly reported as current`() {
+        val report = """
+            {
+                "current": {
+                    "dependencies": [
+                        {
+                            "group": "androidx.activity",
+                            "userReason": null,
+                            "version": "1.4.0",
+                            "projectUrl": "https://developer.android.com/jetpack/androidx/releases/activity#1.4.0",
+                            "name": "activity-compose"
+                        }
+                   ]
+                }
+                }
+        """.trimIndent()
+        val updater = VersionReportParser()
+
+        val currentCatalog = VersionCatalogParser().parse(
+            """
+            [libraries]
+            activity = "androidx.activity:activity-compose:1.6.0"
+            """.trimIndent().byteInputStream()
+        )
+
+        val catalog = updater.generateCatalog(report.byteInputStream(), currentCatalog).catalog
+
+        val writer = VersionCatalogWriter()
+        val output = StringWriter()
+        writer.write(catalog, output)
+
+        assertTrue(catalog.libraries.isEmpty())
     }
 }

@@ -93,12 +93,6 @@ abstract class VersionCatalogUpdateTask : DefaultTask() {
 
     @TaskAction
     fun updateCatalog() {
-        val reportParser = VersionReportParser()
-
-        val versionsReportResult =
-            reportParser.generateCatalog(reportJson.get().asFile.inputStream(), useLatestVersions = !createCatalog)
-        val catalogFromDependencies = versionsReportResult.catalog
-
         if (interactive && createCatalog) {
             throw GradleException("--interactive cannot be used with --create")
         }
@@ -118,6 +112,11 @@ abstract class VersionCatalogUpdateTask : DefaultTask() {
                 throw GradleException("${catalogFile.get()} does not exist. Did you mean to specify the --create option?")
             }
         }
+
+        val reportParser = VersionReportParser()
+        val versionsReportResult =
+            reportParser.generateCatalog(reportJson.get().asFile.inputStream(), currentCatalog, useLatestVersions = !createCatalog)
+        val catalogFromDependencies = versionsReportResult.catalog
 
         val pins = getPins(currentCatalog, pinRefs + getPinnedRefsFromComments(currentCatalog))
         val keepRefs = this.keepRefs + getKeepRefsFromComments(currentCatalog)
