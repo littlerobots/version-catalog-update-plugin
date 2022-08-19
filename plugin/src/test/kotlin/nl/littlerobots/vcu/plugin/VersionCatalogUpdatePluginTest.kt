@@ -1658,4 +1658,53 @@ class VersionCatalogUpdatePluginTest {
 
         assertEquals("", tomlFile.readText())
     }
+
+    @Test
+    fun `interactive retains kept references`() {
+        val reportJson = tempDir.newFile()
+
+        buildFile.writeText(
+            """
+            plugins {
+                id "nl.littlerobots.version-catalog-update"
+            }
+
+            tasks.named("versionCatalogUpdate").configure {
+                it.reportJson = file("${reportJson.name}")
+            }
+            """.trimIndent()
+        )
+
+        reportJson.writeText("{}")
+
+        val toml = """
+            [versions]
+            # @keep
+            coil = "1.0.0"
+
+            [libraries]
+            # removed event though the version is kept!
+            test = { module = "io.coil-kt:coil-compose", version.ref = "coil" }
+        """.trimIndent()
+
+        val tomlFile = File(tempDir.root, "gradle/libs.versions.toml")
+        File(tempDir.root, "gradle").mkdir()
+        tomlFile.writeText(toml)
+
+        GradleRunner.create()
+            .withProjectDir(tempDir.root)
+            .withArguments("versionCatalogUpdate", "--interactive")
+            .withPluginClasspath()
+            .build()
+
+        assertEquals(
+            """
+            [versions]
+            # @keep
+            coil = "1.0.0"
+
+            """.trimIndent(),
+            tomlFile.readText()
+        )
+    }
 }

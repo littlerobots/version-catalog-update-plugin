@@ -161,7 +161,7 @@ abstract class VersionCatalogUpdateTask : DefaultTask() {
                 updatedCatalog,
                 getPinsWithUpdatedVersions(catalogWithResolvedPlugins, pins)
             )
-            if (keep.orNull?.keepUnusedVersions?.getOrElse(false) == false) {
+            if (keep.orNull?.keepingAnything == false) {
                 // remove entries that are no longer in the update
                 val c = currentCatalog.copy(
                     libraries = currentCatalog.libraries.filterValues { library ->
@@ -177,6 +177,9 @@ abstract class VersionCatalogUpdateTask : DefaultTask() {
                 )
                 // update again to fix bundles and versions
                 val currentPruned = currentCatalog.updateFrom(c, purge = true)
+                    .withKeepUnusedVersions(currentCatalog, keep.orNull?.keepUnusedVersions?.getOrElse(false) ?: false)
+                    .withKeptVersions(currentCatalog, keepRefs)
+
                 val writer = VersionCatalogWriter()
                 // write out the current catalog without sorting it
                 writer.write(currentPruned, catalogFile.get().writer())
