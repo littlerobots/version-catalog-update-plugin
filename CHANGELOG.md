@@ -3,7 +3,7 @@ Version 0.6.0
 -------------
 * New feature: `--incremental` command line option to stage changes without updating the TOML file [(#63)](https://github.com/littlerobots/version-catalog-update-plugin/issues/63)
 * Shadow (bundle) dependencies to prevent conflicts with other plugins [(#39)](https://github.com/littlerobots/version-catalog-update-plugin/issues/39)
-* Fix an issue with unused kept pinned dependencies causing the update task to fail [(#61)](https://github.com/littlerobots/version-catalog-update-plugin/issues/61)
+* Fix an issue with unused transitive dependencies causing unwanted changes to the TOML file [(#71)](https://github.com/littlerobots/version-catalog-update-plugin/issues/71)
 * Removed `--add` option. [(#69)](https://github.com/littlerobots/version-catalog-update-plugin/issues/69)
 
 Version 0.5.3
