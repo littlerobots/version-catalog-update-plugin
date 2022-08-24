@@ -1,4 +1,8 @@
 # Changelog
+Version 0.6.1-SNAPSHOT
+---------------------
+* Fixed an issue with grouping versions [(#82)](https://github.com/littlerobots/version-catalog-update-plugin/issues/82)
+
 Version 0.6.0
 -------------
 * New feature: `--interactive` command line option to stage changes without updating the TOML file [(#63)](https://github.com/littlerobots/version-catalog-update-plugin/issues/63)
