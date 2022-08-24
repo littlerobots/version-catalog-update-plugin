@@ -748,4 +748,18 @@ class VersionCatalogTest {
         // room-compiler is not updated, and effectively removed from the version reference
         assertEquals(Library("androidx.room:room-compiler", version = VersionDefinition.Simple("2.4.2")), result.libraries["roomCompiler"])
     }
+
+    @Test
+    // repro for https://github.com/littlerobots/version-catalog-update-plugin/issues/80
+    fun `handles unspecified version when collecting version groups`() {
+        val result = VersionCatalogParser().parse(
+            """
+            [libraries]
+            com-google-firebase-firebase-config-ktx = { module = "com.google.firebase:firebase-config-ktx" }
+            com-google-firebase-firebase-bom = "com.google.firebase:firebase-bom:30.3.2"
+            """.trimIndent().byteInputStream()
+        )
+
+        assertEquals(2, result.libraries.size)
+    }
 }

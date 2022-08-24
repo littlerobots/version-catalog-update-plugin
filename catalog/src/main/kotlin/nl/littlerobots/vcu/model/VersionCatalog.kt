@@ -237,7 +237,8 @@ private fun VersionCatalog.collectVersionReferenceForGroups(
 
     for (library in librariesWithoutVersionRef) {
         val group = resolvedVersions[library.value.group] ?: throw IllegalStateException()
-        val groupVersion = group.first().version as VersionDefinition.Simple
+        // Find the first simple version, if there is one (might be all conditional versions at this point)
+        val groupVersion = group.firstOrNull { it.version is VersionDefinition.Simple }?.version as? VersionDefinition.Simple ?: break
         if (group.all { it.version == groupVersion } && library.value.version == groupVersion) {
             val versionRef = librariesByGroup[library.value.group]?.firstOrNull {
                 it.version is VersionDefinition.Reference
