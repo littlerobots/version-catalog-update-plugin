@@ -23,7 +23,35 @@ subprojects {
         }
 
         signing {
-            useGpgCmd()
+            def signingKey = findProperty("SIGNING_KEY")
+            def signingPassword = findProperty("SIGNING_PASSWORD")
+            def signingKeyId = findProperty("SIGNING_KEY_ID")
+            if (signingKey != null && signingPassword != null && signingKeyId != null) {
+                println("Using in memory signing key")
+                useInMemoryPgpKeys(signingKeyId, signingKey, signingPassword)
+            } else {
+                useGpgCmd()
+            }
+        }
+    }
+}
+
+tasks.register("publishSnapshot") {
+    if (project.property("VERSION_NAME").endsWith("-SNAPSHOT")) {
+        it.dependsOn ":plugin:publish"
+    } else {
+        doLast {
+            println("Version ${project.property("VERSION_NAME")} is not a snapshot, skipping publish")
+        }
+    }
+}
+
+tasks.register("publishRelease") {
+    if (!project.property("VERSION_NAME").endsWith("-SNAPSHOT")) {
+        it.dependsOn ":plugin:publish", ":plugin:publishPlugins"
+    } else {
+        doLast {
+            println("Version ${project.property("VERSION_NAME")} is not a release version, skipping publish")
         }
     }
 }

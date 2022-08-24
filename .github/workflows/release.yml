@@ -1,9 +1,11 @@
-name: build & test
+name: release
 
-on: push
+on:
+  release:
+    types: [published]
 
 jobs:
-  build-test:
+  release:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -21,15 +23,13 @@ jobs:
       - name: "Setup Gradle"
         uses: gradle/gradle-build-action@v2
 
-      - name: Build
-        run: ./gradlew build
-
-      - name: Publish snapshot
-        if: ${{ (github.ref == 'refs/heads/main') }}
+      - name: "Publish release"
         env:
           ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.NEXUS_USER_NAME }}
           ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.NEXUS_PASSWORD }}
           ORG_GRADLE_PROJECT_SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
           ORG_GRADLE_PROJECT_SIGNING_KEY_ID: ${{ secrets.SIGNING_KEY_ID }}
           ORG_GRADLE_PROJECT_SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
-        run: ./gradlew --no-daemon --no-parallel publishSnapshot
+          ORG_GRADLE_PROJECT_gradle.publish.key: ${{ secrets.GRADLE_PUBLISH_KEY }}
+          ORG_GRADLE_PROJECT_gradle.publish.secret: ${{ secrets.GRADLE_PUBLISH_SECRET }}
+        run: ./gradlew publishRelease closeAndReleaseRepository --no-daemon --no-parallel
