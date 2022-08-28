@@ -2,6 +2,8 @@
 Version 0.6.1-SNAPSHOT
 ---------------------
 * Fixed an issue with grouping versions [(#82)](https://github.com/littlerobots/version-catalog-update-plugin/issues/82)
+* Fix: retain order of kept versions [(#78)](https://github.com/littlerobots/version-catalog-update-plugin/issues/78)
+* Now also available from the Gradle Plugin portal
 
 Version 0.6.0
 -------------

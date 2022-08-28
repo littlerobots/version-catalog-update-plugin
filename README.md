@@ -1,4 +1,5 @@
 # Version catalog update plugin
+[![gradlePluginPortal](https://img.shields.io/maven-metadata/v/https/plugins.gradle.org/m2/nl/littlerobots/version-catalog-update/nl.littlerobots.version-catalog-update.gradle.plugin/maven-metadata.xml.svg?label=gradlePluginPortal)](https://plugins.gradle.org/plugin/com.github.ben-manes.versions)
 [![Maven Central](https://img.shields.io/maven-central/v/nl.littlerobots.vcu/plugin)](https://search.maven.org/search?q=g:nl.littlerobots.vcu%20a:plugin)
 
 This plugin helps to keep the versions in a Gradle [version catalog toml file](https://docs.gradle.org/current/userguide/platforms.html) up to date.
@@ -9,15 +10,14 @@ This plugin requires Gradle 7.2 or up. [Version catalogs](https://docs.gradle.or
 
 The [versions plugin](https://github.com/ben-manes/gradle-versions-plugin) needs to be applied in the root `build.gradle` or `build.gradle.kts` build file.
 
-The version catalog plugin (including its snapshots) is hosted on Maven Central. Be sure to add `mavenCentral()` to your plugin repositories, for example in `settings.gradle`:
+The version catalog plugin is hosted on the [Gradle Plugin portal](https://plugins.gradle.org/plugin/nl.littlerobots.version-catalog-update) and Maven Central. [Snapshots](#snapshot-versions) are only published to Maven Central. To use Maven Central, be sure to include
+it in your plugin repositories, for example in `settings.gradle`:
 
 ```
 pluginManagement {
- dependencyResolutionManagement {
     repositories {
       mavenCentral()
     }
-  }
 }
 ```
 
