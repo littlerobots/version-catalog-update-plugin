@@ -21,10 +21,7 @@ internal fun VersionCatalog.withKeepUnusedVersions(currentCatalog: VersionCatalo
     if (!keep) {
         return this
     }
-    val removedVersions = currentCatalog.versions.entries.filter {
-        !versions.containsKey(it.key)
-    }.associate { it.key to it.value }
-    return copy(versions = versions + removedVersions)
+    return copy(versions = currentCatalog.versions + versions)
 }
 
 internal fun VersionCatalog.withKeptVersions(
@@ -38,5 +35,13 @@ internal fun VersionCatalog.withKeptVersions(
             ref.versionName to it
         }
     }.toMap()
-    return copy(versions = versions + keptVersions)
+    return copy(versions = currentCatalog.versions.updateKeepingOrdering(versions, keptVersions))
+}
+
+private fun <K, V> Map<K, V>.updateKeepingOrdering(updates: Map<K, V>, keptEntries: Map<K, V>): Map<K, V> {
+    return mapNotNull { entry ->
+        (updates[entry.key] ?: keptEntries[entry.key])?.let {
+            entry.key to it
+        }
+    }.toMap() + updates
 }

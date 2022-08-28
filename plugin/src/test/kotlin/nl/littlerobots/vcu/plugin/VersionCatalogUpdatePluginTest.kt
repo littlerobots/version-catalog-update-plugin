@@ -1707,4 +1707,133 @@ class VersionCatalogUpdatePluginTest {
             tomlFile.readText()
         )
     }
+
+    @Test
+    fun `keep all versions retains version order in catalog`() {
+        val reportJson = tempDir.newFile()
+
+        buildFile.writeText(
+            """
+            plugins {
+                id "nl.littlerobots.version-catalog-update"
+            }
+
+            tasks.named("versionCatalogUpdate").configure {
+                it.reportJson = file("${reportJson.name}")
+            }
+
+            versionCatalogUpdate {
+                sortByKey = false
+                keep.keepUnusedVersions.set(true)
+            }
+            """.trimIndent()
+        )
+
+        reportJson.writeText(
+            """
+                        {
+                "current": {
+                    "dependencies": [
+                        {
+                            "group": "androidx.activity",
+                            "userReason": null,
+                            "version": "1.4.0",
+                            "projectUrl": "https://developer.android.com/jetpack/androidx/releases/activity#1.4.0",
+                            "name": "activity-compose"
+                        }
+                   ]
+                }
+                }
+            """.trimIndent()
+        )
+
+        val toml = """
+            [versions]
+            someVersion = "1.0.0"
+            activity = "1.4.0"
+
+            [libraries]
+            test = { module = "androidx.activity:activity-compose", version.ref = "activity" }
+
+        """.trimIndent()
+
+        val tomlFile = File(tempDir.root, "gradle/libs.versions.toml")
+        File(tempDir.root, "gradle").mkdir()
+        tomlFile.writeText(toml)
+
+        GradleRunner.create()
+            .withProjectDir(tempDir.root)
+            .withArguments("versionCatalogUpdate")
+            .withPluginClasspath()
+            .build()
+
+        assertEquals(
+            toml,
+            tomlFile.readText()
+        )
+    }
+    @Test
+    fun `kept version retains order in catalog`() {
+        val reportJson = tempDir.newFile()
+
+        buildFile.writeText(
+            """
+            plugins {
+                id "nl.littlerobots.version-catalog-update"
+            }
+
+            tasks.named("versionCatalogUpdate").configure {
+                it.reportJson = file("${reportJson.name}")
+            }
+
+            versionCatalogUpdate {
+                sortByKey = false
+            }
+            """.trimIndent()
+        )
+
+        reportJson.writeText(
+            """
+                        {
+                "current": {
+                    "dependencies": [
+                        {
+                            "group": "androidx.activity",
+                            "userReason": null,
+                            "version": "1.4.0",
+                            "projectUrl": "https://developer.android.com/jetpack/androidx/releases/activity#1.4.0",
+                            "name": "activity-compose"
+                        }
+                   ]
+                }
+                }
+            """.trimIndent()
+        )
+
+        val toml = """
+            [versions]
+            # @keep
+            someVersion = "1.0.0"
+            activity = "1.4.0"
+
+            [libraries]
+            test = { module = "androidx.activity:activity-compose", version.ref = "activity" }
+
+        """.trimIndent()
+
+        val tomlFile = File(tempDir.root, "gradle/libs.versions.toml")
+        File(tempDir.root, "gradle").mkdir()
+        tomlFile.writeText(toml)
+
+        GradleRunner.create()
+            .withProjectDir(tempDir.root)
+            .withArguments("versionCatalogUpdate")
+            .withPluginClasspath()
+            .build()
+
+        assertEquals(
+            toml,
+            tomlFile.readText()
+        )
+    }
 }
