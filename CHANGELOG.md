@@ -1,5 +1,5 @@
 # Changelog
-Version 0.6.1-SNAPSHOT
+Version 0.6.1
 ---------------------
 * Fixed an issue with grouping versions [(#82)](https://github.com/littlerobots/version-catalog-update-plugin/issues/82)
 * Fix: retain order of kept versions [(#78)](https://github.com/littlerobots/version-catalog-update-plugin/issues/78)
