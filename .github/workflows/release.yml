@@ -32,4 +32,4 @@ jobs:
           ORG_GRADLE_PROJECT_SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
           GRADLE_PUBLISH_KEY: ${{ secrets.GRADLE_PUBLISH_KEY }}
           GRADLE_PUBLISH_SECRET: ${{ secrets.GRADLE_PUBLISH_SECRET }}
-        run: ./gradlew publishRelease closeAndReleaseRepository --no-daemon --no-parallel
+        run: ./gradlew build publishRelease closeAndReleaseRepository --no-daemon --no-parallel
