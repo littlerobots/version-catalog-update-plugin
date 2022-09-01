@@ -47,6 +47,11 @@ abstract class VersionCatalogApplyUpdatesTask : DefaultTask() {
         keep.orNull?.getVersionCatalogRefs() ?: emptySet()
     }
 
+    init {
+        description = "Applies changes to the libs.versions.toml file."
+        group = "Version catalog update"
+    }
+
     @TaskAction
     fun applyUpdates() {
         val updatesFile = catalogFile.asFile.get().updatesFile

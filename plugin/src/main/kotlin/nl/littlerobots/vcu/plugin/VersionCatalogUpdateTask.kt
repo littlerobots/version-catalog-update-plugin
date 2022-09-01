@@ -64,11 +64,11 @@ abstract class VersionCatalogUpdateTask : DefaultTask() {
     @get:Optional
     abstract val catalogFile: Property<File>
 
-    @set:Option(option = "create", description = "Create libs.versions.toml based on current dependencies")
+    @set:Option(option = "create", description = "Create a libs.versions.toml file based on current dependencies.")
     @get:Internal
     abstract var createCatalog: Boolean
 
-    @set:Option(option = "interactive", description = "Stage changes before applying to the toml file")
+    @set:Option(option = "interactive", description = "Stage changes before applying them to the libs.versions.toml file.")
     @get:Internal
     abstract var interactive: Boolean
 
@@ -89,6 +89,11 @@ abstract class VersionCatalogUpdateTask : DefaultTask() {
 
     private val keepRefs by lazy {
         keep.orNull?.getVersionCatalogRefs() ?: emptySet()
+    }
+
+    init {
+        description = "Updates the libs.versions.toml file."
+        group = "Version catalog update"
     }
 
     @TaskAction
