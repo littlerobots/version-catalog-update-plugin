@@ -47,6 +47,11 @@ abstract class VersionCatalogFormatTask @Inject constructor() : DefaultTask() {
         keep.orNull?.getVersionCatalogRefs() ?: emptySet()
     }
 
+    init {
+        description = "Formats the libs.versions.toml file."
+        group = "Version catalog update"
+    }
+
     @TaskAction
     fun formatCatalogFile() {
         val catalog = VersionCatalogParser().parse(catalogFile.get().asFile.inputStream())

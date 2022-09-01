@@ -91,6 +91,11 @@ abstract class VersionCatalogUpdateTask : DefaultTask() {
         keep.orNull?.getVersionCatalogRefs() ?: emptySet()
     }
 
+    init {
+        description = "Updates the libs.versions.toml file."
+        group = "Version catalog update"
+    }
+
     @TaskAction
     fun updateCatalog() {
         if (interactive && createCatalog) {
