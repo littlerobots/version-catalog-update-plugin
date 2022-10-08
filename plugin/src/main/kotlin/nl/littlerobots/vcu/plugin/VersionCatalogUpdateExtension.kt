@@ -18,9 +18,11 @@
 package nl.littlerobots.vcu.plugin
 
 import org.gradle.api.Action
+import org.gradle.api.NamedDomainObjectContainer
 import org.gradle.api.Project
 import org.gradle.api.artifacts.MinimalExternalModuleDependency
 import org.gradle.api.artifacts.ModuleIdentifier
+import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.provider.Provider
 import org.gradle.api.provider.SetProperty
@@ -28,6 +30,7 @@ import org.gradle.api.tasks.Nested
 import org.gradle.api.tasks.Optional
 import org.gradle.plugin.use.PluginDependency
 import java.io.Serializable
+import javax.inject.Inject
 
 abstract class VersionCatalogUpdateExtension {
     @get:Optional
@@ -39,6 +42,9 @@ abstract class VersionCatalogUpdateExtension {
     @get:Nested
     abstract val keep: KeepConfiguration
 
+    @get:Nested
+    abstract val versionCatalogs: NamedDomainObjectContainer<VersionCatalogConfig>
+
     fun pin(action: Action<PinConfiguration>) {
         action.execute(pins)
     }
@@ -46,14 +52,29 @@ abstract class VersionCatalogUpdateExtension {
     fun keep(action: Action<KeepConfiguration>) {
         action.execute(keep)
     }
+
+    fun versionCatalogs(action: Action<NamedDomainObjectContainer<VersionCatalogConfig>>) {
+        action.execute(versionCatalogs)
+    }
 }
 
-@Suppress("LeakingThis")
 abstract class VersionRefConfiguration : Serializable {
     abstract val versions: SetProperty<String>
     abstract val libraries: SetProperty<Provider<MinimalExternalModuleDependency>>
     abstract val plugins: SetProperty<Provider<PluginDependency>>
     abstract val groups: SetProperty<String>
+}
+
+abstract class VersionCatalogConfig @Inject constructor(val name: String) {
+    abstract val catalogFile: RegularFileProperty
+    @get:Optional
+    abstract val sortByKey: Property<Boolean>
+
+    @get:Nested
+    abstract val pins: PinConfiguration
+
+    @get:Nested
+    abstract val keep: KeepConfiguration
 }
 
 abstract class PinConfiguration : VersionRefConfiguration()
