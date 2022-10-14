@@ -197,6 +197,7 @@ class VersionCatalogFormatPluginTest {
             .withProjectDir(tempDir.root)
             .withArguments("versionCatalogFormat")
             .withPluginClasspath()
+            .withDebug(true)
             .build()
 
         val libs = File(tempDir.root, "gradle/libs.versions.toml").readText()

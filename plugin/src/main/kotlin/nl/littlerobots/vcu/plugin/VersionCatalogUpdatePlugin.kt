@@ -19,6 +19,7 @@ import com.github.benmanes.gradle.versions.updates.DependencyUpdatesTask
 import org.gradle.api.GradleException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
+import org.gradle.api.file.RegularFileProperty
 import org.gradle.util.GradleVersion
 import java.io.File
 
@@ -39,50 +40,110 @@ class VersionCatalogUpdatePlugin : Plugin<Project> {
         }
 
         val extension = project.extensions.create(EXTENSION_NAME, VersionCatalogUpdateExtension::class.java)
-
         val reportJson = project.objects.fileProperty()
 
-        val catalogUpdatesTask = project.tasks.register(UPDATE_TASK_NAME, VersionCatalogUpdateTask::class.java)
-        val catalogFormatTask = project.tasks.register(FORMAT_TASK_NAME, VersionCatalogFormatTask::class.java)
-        val catalogApplyUpdatesTask = project.tasks.register(VersionCatalogApplyUpdatesTask.TASK_NAME, VersionCatalogApplyUpdatesTask::class.java)
+        val defaultVersionCatalog = project.objects.newInstance(VersionCatalogConfig::class.java, "")
+            .applyDefaultSettings(extension)
+        defaultVersionCatalog.catalogFile.set(project.rootProject.file("gradle/libs.versions.toml"))
+
+        configureTasks(project, defaultVersionCatalog, reportJson)
+
+        extension.versionCatalogs.all {
+            configureTasks(project, it.applyDefaultSettings(extension), reportJson)
+        }
+
+        project.pluginManager.withPlugin(VERSIONS_PLUGIN_ID) {
+            project.tasks.named(DEPENDENCY_UPDATES_TASK_NAME, DependencyUpdatesTask::class.java) {
+                reportJson.set(File(project.file(it.outputDir), "${it.reportfileName}.json"))
+                it.outputFormatter = "json,xml,plain"
+                it.checkConstraints = true
+                it.checkBuildEnvironmentConstraints = true
+            }
+        }
+    }
+
+    private fun configureTasks(
+        project: Project,
+        versionCatalogConfig: VersionCatalogConfig,
+        reportJson: RegularFileProperty
+    ) {
+        configureUpdateTask(project, versionCatalogConfig, reportJson)
+        configureFormatTask(project, versionCatalogConfig)
+        configureApplyTask(project, versionCatalogConfig)
+    }
+
+    private fun configureApplyTask(project: Project, versionCatalogConfig: VersionCatalogConfig) {
+        project.tasks.register(
+            "${VersionCatalogApplyUpdatesTask.TASK_NAME}${versionCatalogConfig.name.capitalize()}",
+            VersionCatalogApplyUpdatesTask::class.java
+        ) { task ->
+            task.sortByKey.set(versionCatalogConfig.sortByKey)
+            task.keep.set(
+                project.provider {
+                    project.objects.newInstance(
+                        KeepConfigurationInput::class.java,
+                        versionCatalogConfig.keep
+                    )
+                }
+            )
+            task.catalogFile.set(versionCatalogConfig.catalogFile)
+        }
+    }
+
+    private fun configureFormatTask(project: Project, versionCatalogConfig: VersionCatalogConfig) {
+        project.tasks.register(
+            "$FORMAT_TASK_NAME${versionCatalogConfig.name.capitalize()}",
+            VersionCatalogFormatTask::class.java
+        ) { task ->
+            task.sortByKey.set(versionCatalogConfig.sortByKey)
+            task.keep.set(
+                project.provider {
+                    project.objects.newInstance(
+                        KeepConfigurationInput::class.java,
+                        versionCatalogConfig.keep
+                    )
+                }
+            )
+            task.catalogFile.set(versionCatalogConfig.catalogFile)
+        }
+    }
+
+    private fun configureUpdateTask(
+        project: Project,
+        versionCatalogConfig: VersionCatalogConfig,
+        reportJson: RegularFileProperty
+    ) {
+        val catalogUpdatesTask =
+            project.tasks.register(
+                "${UPDATE_TASK_NAME}${versionCatalogConfig.name.capitalize()}",
+                VersionCatalogUpdateTask::class.java
+            )
 
         catalogUpdatesTask.configure { task ->
             task.reportJson.set(reportJson)
-            task.pins.set(project.objects.newInstance(PinsConfigurationInput::class.java, extension.pins))
-            task.keep.set(project.objects.newInstance(KeepConfigurationInput::class.java, extension.keep))
-            task.sortByKey.set(extension.sortByKey)
-
-            if (!task.catalogFile.isPresent) {
-                task.catalogFile.set(project.rootProject.file("gradle/libs.versions.toml"))
-            }
-        }
-
-        catalogFormatTask.configure { task ->
-            task.sortByKey.set(extension.sortByKey)
-            task.keep.set(project.objects.newInstance(KeepConfigurationInput::class.java, extension.keep))
-
-            if (!task.catalogFile.isPresent) {
-                task.catalogFile.set(project.rootProject.file("gradle/libs.versions.toml"))
-            }
-        }
-
-        catalogApplyUpdatesTask.configure { task ->
-            task.sortByKey.set(extension.sortByKey)
-            task.keep.set(project.objects.newInstance(KeepConfigurationInput::class.java, extension.keep))
-
-            if (!task.catalogFile.isPresent) {
-                task.catalogFile.set(project.rootProject.file("gradle/libs.versions.toml"))
-            }
+            task.pins.set(
+                project.provider {
+                    project.objects.newInstance(
+                        PinsConfigurationInput::class.java,
+                        versionCatalogConfig.pins
+                    )
+                }
+            )
+            task.keep.set(
+                project.provider {
+                    project.objects.newInstance(
+                        KeepConfigurationInput::class.java,
+                        versionCatalogConfig.keep
+                    )
+                }
+            )
+            task.sortByKey.set(versionCatalogConfig.sortByKey)
+            task.catalogFile.set(versionCatalogConfig.catalogFile.asFile)
         }
 
         project.pluginManager.withPlugin(VERSIONS_PLUGIN_ID) {
             val dependencyUpdatesTask =
-                project.tasks.named(DEPENDENCY_UPDATES_TASK_NAME, DependencyUpdatesTask::class.java) {
-                    reportJson.set(File(project.file(it.outputDir), "${it.reportfileName}.json"))
-                    it.outputFormatter = "json,xml,plain"
-                    it.checkConstraints = true
-                    it.checkBuildEnvironmentConstraints = true
-                }
+                project.tasks.named(DEPENDENCY_UPDATES_TASK_NAME, DependencyUpdatesTask::class.java)
             catalogUpdatesTask.configure {
                 it.dependsOn(dependencyUpdatesTask)
             }
@@ -98,4 +159,21 @@ class VersionCatalogUpdatePlugin : Plugin<Project> {
             }
         }
     }
+}
+
+private fun VersionCatalogConfig.applyDefaultSettings(extension: VersionCatalogUpdateExtension): VersionCatalogConfig {
+    sortByKey.convention(extension.sortByKey)
+    pins.applyDefaultSettings(extension.pins)
+    keep.applyDefaultSettings(extension.keep)
+    keep.keepUnusedLibraries.convention(extension.keep.keepUnusedLibraries)
+    keep.keepUnusedVersions.convention(extension.keep.keepUnusedVersions)
+    keep.keepUnusedPlugins.convention(extension.keep.keepUnusedPlugins)
+    return this
+}
+
+private fun VersionRefConfiguration.applyDefaultSettings(source: VersionRefConfiguration) {
+    libraries.convention(source.libraries)
+    versions.convention(source.versions)
+    plugins.convention(source.plugins)
+    groups.convention(source.groups)
 }
