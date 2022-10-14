@@ -1,4 +1,9 @@
 # Changelog
+Version 0.7.0
+-------------
+* Group tasks [PR #86](https://github.com/littlerobots/version-catalog-update-plugin/pull/86)
+* Support multiple TOML files [(#52)](https://github.com/littlerobots/version-catalog-update-plugin/issues/52)
+
 Version 0.6.1
 ---------------------
 * Fixed an issue with grouping versions [(#82)](https://github.com/littlerobots/version-catalog-update-plugin/issues/82)
