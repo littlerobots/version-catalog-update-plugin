@@ -264,6 +264,49 @@ kotlin = "1.6.10"
 my-library = "com.example.library:1.0"
 ```
 
+## Managing additional version catalogs
+The default tasks operate on the default version catalog file, `libs.versions.toml` in the `gradle` directory
+of a project. Additional version catalogs can be configured within the `versionCatalogUpdate` extension:
+
+<details open>
+<summary>build.gradle</summary>
+
+```groovy
+versionCatalogUpdate {
+    // These options will be set as default for all version catalogs
+    sortByKey = true
+    // Referenced that are pinned are not automatically updated.
+    // They are also not automatically kept however (use keep for that).
+    pin {
+        ...
+    }
+    keep {
+        ...
+    }
+    versionCatalogs {
+        myOtherCatalog {
+            catalogFile = file("catalogs/mycatalog.versions.toml")
+            // not sorted
+            sortByKey = false
+        }
+        special {
+            catalogFile = file("catalogs/special.versions.toml")
+            // overrides the options set above
+            keep {
+                keepUnusedVersions = true
+            }
+        }
+    }
+}
+```
+</details>
+
+By configuring additional version catalogs, new tasks in the form of `versionCatalogUpdate<Name>` will get added.
+For example, when declaring a `myOtherCatalog` catalog, the tasks `versionCatalogUpdateMyOtherCatalog`, `versionCatalogFormatMyotherCatalog`
+and `versionCatalogAppyUpdatesMyOtherCatalog` are configured. These work the same as the default tasks
+and have the same available options. Each version catalog definition can specify configuration for
+`sortByKey` and the `pin` and `keep` blocks. If not defined, the default options will be applied for those options.
+
 ## Snapshot versions
 For snapshots versions add the Sonatype snapshot repository `https://oss.sonatype.org/content/repositories/snapshots/`.
 
