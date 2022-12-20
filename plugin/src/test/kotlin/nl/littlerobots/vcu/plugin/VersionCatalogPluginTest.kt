@@ -16,6 +16,7 @@
 package nl.littlerobots.vcu.plugin
 
 import org.gradle.testkit.runner.GradleRunner
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
@@ -75,5 +76,54 @@ class VersionCatalogPluginTest {
         assertTrue(result.output.contains("versionCatalogUpdateLibs2"))
         assertTrue(result.output.contains("versionCatalogFormatLibs2"))
         assertTrue(result.output.contains("versionCatalogApplyUpdatesLibs2"))
+    }
+
+    @Test
+    fun `default version catalog file can be changed`() {
+        val reportJson = tempDir.newFile()
+
+        buildFile.writeText(
+            """
+            plugins {
+                id "nl.littlerobots.version-catalog-update"
+            }
+
+            tasks.named("versionCatalogUpdate").configure {
+                it.reportJson = file("${reportJson.name}")
+            }
+
+            versionCatalogUpdate {
+                catalogFile = file("libs3.versions.toml")
+            }
+            """.trimIndent()
+        )
+
+        val toml = """
+            [libraries]
+            b = "com.test:example:1.0.0"
+            a = "com.test2:example:1.0.0"
+        """.trimIndent()
+
+        val tomlFile = tempDir.newFile("libs3.versions.toml")
+        tomlFile.writeText(toml)
+
+        GradleRunner.create()
+            .withProjectDir(tempDir.root)
+            .withArguments("versionCatalogFormat")
+            .withPluginClasspath()
+            .build()
+
+        // check if the file was formatted
+        val formattedToml = tomlFile.readText()
+
+        assertEquals(
+            """
+            [libraries]
+            a = "com.test2:example:1.0.0"
+            b = "com.test:example:1.0.0"
+
+            """.trimIndent(),
+            formattedToml
+        )
     }
 }

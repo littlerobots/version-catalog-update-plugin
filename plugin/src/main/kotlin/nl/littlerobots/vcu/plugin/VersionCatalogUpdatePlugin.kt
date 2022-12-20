@@ -44,7 +44,10 @@ class VersionCatalogUpdatePlugin : Plugin<Project> {
 
         val defaultVersionCatalog = project.objects.newInstance(VersionCatalogConfig::class.java, "")
             .applyDefaultSettings(extension)
-        defaultVersionCatalog.catalogFile.set(project.rootProject.file("gradle/libs.versions.toml"))
+
+        defaultVersionCatalog.catalogFile.set(
+            extension.catalogFile.convention(project.layout.projectDirectory.file("gradle/libs.versions.toml"))
+        )
 
         configureTasks(project, defaultVersionCatalog, reportJson)
 

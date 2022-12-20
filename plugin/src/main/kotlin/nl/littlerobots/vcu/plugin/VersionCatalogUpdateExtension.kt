@@ -36,6 +36,9 @@ abstract class VersionCatalogUpdateExtension {
     @get:Optional
     abstract val sortByKey: Property<Boolean>
 
+    @get:Optional
+    abstract val catalogFile: RegularFileProperty
+
     @get:Nested
     abstract val pins: PinConfiguration
 
