@@ -300,12 +300,67 @@ versionCatalogUpdate {
 }
 ```
 </details>
+<details>
+<summary>build.gradle.kts</summary>
+
+```kotlin
+versionCatalogUpdate {
+    // These options will be set as default for all version catalogs
+    sortByKey.set(true)
+    // Referenced that are pinned are not automatically updated.
+    // They are also not automatically kept however (use keep for that).
+    pin {
+        ...
+    }
+    keep {
+        ...
+    }
+    versionCatalogs {
+        create("myOtherCatalog") {
+            catalogFile.set(file("catalogs/mycatalog.versions.toml"))
+            // not sorted
+            sortByKey.set(false)
+        }
+        create("special") {
+            catalogFile.set)file("catalogs/special.versions.toml"))
+            // overrides the options set above
+            keep {
+                keepUnusedVersions.set(true)
+            }
+        }
+    }
+}
+```
+</details>
 
 By configuring additional version catalogs, new tasks in the form of `versionCatalogUpdate<Name>` will get added.
 For example, when declaring a `myOtherCatalog` catalog, the tasks `versionCatalogUpdateMyOtherCatalog`, `versionCatalogFormatMyotherCatalog`
 and `versionCatalogAppyUpdatesMyOtherCatalog` are configured. These work the same as the default tasks
 and have the same available options. Each version catalog definition can specify configuration for
 `sortByKey` and the `pin` and `keep` blocks. If not defined, the default options will be applied for those options.
+
+### Changing the default version catalog
+By the default the plugin uses `gradle/libs.versions.toml` as the primary version catalog file.
+To change the default, configure it in the `versionCatalogUpdate` block:
+
+<details open>
+<summary>build.gradle</summary>
+
+```groovy
+versionCatalogUpdate {
+    catalogFile = file("path/to/the/catalog.toml")
+}
+```
+</details>
+<details open>
+<summary>build.gradle.kts</summary>
+
+```kotlin
+versionCatalogUpdate {
+    catalogFile.set(file("path/to/the/catalog.toml"))
+}
+```
+</details>
 
 ## Snapshot versions
 For snapshots versions add the Sonatype snapshot repository `https://oss.sonatype.org/content/repositories/snapshots/`.
