@@ -29,15 +29,15 @@ import nl.littlerobots.vcu.model.resolveVersions
 import nl.littlerobots.vcu.model.resolvedVersion
 import nl.littlerobots.vcu.model.sortKeys
 import nl.littlerobots.vcu.model.updateFrom
+import nl.littlerobots.vcu.plugin.model.BuildScriptArtifact
 import nl.littlerobots.vcu.versions.VersionReportParser
 import nl.littlerobots.vcu.versions.model.Dependency
 import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
-import org.gradle.api.Project
 import org.gradle.api.artifacts.ModuleIdentifier
-import org.gradle.api.artifacts.ResolvedArtifact
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.Property
+import org.gradle.api.provider.SetProperty
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputFile
 import org.gradle.api.tasks.Internal
@@ -47,7 +47,6 @@ import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
 import org.gradle.api.tasks.options.Option
-import org.gradle.internal.component.external.model.ModuleComponentArtifactIdentifier
 import java.io.File
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -82,6 +81,9 @@ abstract class VersionCatalogUpdateTask : DefaultTask() {
     @get:Input
     @get:Optional
     abstract val sortByKey: Property<Boolean>
+
+    @get:Input
+    internal abstract val buildScriptArtifacts: SetProperty<BuildScriptArtifact>
 
     private val pinRefs by lazy {
         pins.orNull?.getVersionCatalogRefs() ?: emptySet()
@@ -127,7 +129,7 @@ abstract class VersionCatalogUpdateTask : DefaultTask() {
         val keepRefs = this.keepRefs + getKeepRefsFromComments(currentCatalog)
 
         val catalogWithResolvedPlugins = resolvePluginIds(
-            getResolvedBuildScriptArtifacts(project),
+            buildScriptArtifacts.get(),
             catalogFromDependencies
         )
 
@@ -220,7 +222,7 @@ abstract class VersionCatalogUpdateTask : DefaultTask() {
         )
 
         if (diff.plugins.isEmpty() && diff.libraries.isEmpty() && pins.libraries.isEmpty() && pins.plugins.isEmpty()) {
-            project.logger.warn("There are no updates available")
+            logger.warn("There are no updates available")
             return
         }
 
@@ -287,7 +289,7 @@ abstract class VersionCatalogUpdateTask : DefaultTask() {
                 }
             }
         }
-        project.logger.warn("Updates are written to ${updateFile.name}. Run the ${VersionCatalogApplyUpdatesTask.TASK_NAME} task to apply updates to ${catalogFile.name}")
+        logger.warn("Updates are written to ${updateFile.name}. Run the ${VersionCatalogApplyUpdatesTask.TASK_NAME} task to apply updates to ${catalogFile.name}")
     }
 
     private fun checkInteractiveState() {
@@ -364,14 +366,14 @@ abstract class VersionCatalogUpdateTask : DefaultTask() {
         }
 
         if (appliedPins.isNotEmpty()) {
-            project.logger.warn(
+            logger.warn(
                 "There are updates available for pinned libraries in the version catalog:"
             )
             for (pin in appliedPins) {
                 val message = " - ${pin.first.module} (${libraryKeys[pin.first.group]}) " +
                     "${(pin.first.version as VersionDefinition.Simple).version} -> " +
                     (pin.second.value.version as VersionDefinition.Simple).version
-                project.logger.warn(message)
+                logger.warn(message)
             }
         }
     }
@@ -412,14 +414,14 @@ abstract class VersionCatalogUpdateTask : DefaultTask() {
         }
 
         if (appliedPins.isNotEmpty()) {
-            project.logger.warn(
+            logger.warn(
                 "There are updates available for pinned plugins in the version catalog:"
             )
             for (pin in appliedPins) {
                 val message = " - ${pin.first.id} (${pluginKeys[pin.first.id]}) " +
                     "${(pin.first.version as VersionDefinition.Simple).version} -> " +
                     (pin.second.value.version as VersionDefinition.Simple).version
-                project.logger.warn(message)
+                logger.warn(message)
             }
         }
     }
@@ -436,7 +438,7 @@ abstract class VersionCatalogUpdateTask : DefaultTask() {
         }.toMap()
 
         if (librariesWithVersionCondition.isNotEmpty()) {
-            project.logger.warn("There are libraries using a version condition that could be updated:")
+            logger.warn("There are libraries using a version condition that could be updated:")
             for (library in librariesWithVersionCondition) {
                 val key = catalog.libraries.entries.first {
                     it.value == library.key
@@ -446,7 +448,7 @@ abstract class VersionCatalogUpdateTask : DefaultTask() {
                     is VersionDefinition.Reference -> " ref:${version.ref}"
                     else -> ""
                 }
-                project.logger.warn(
+                logger.warn(
                     " - ${library.key.module} ($key$versionRef) -> ${library.value.latestVersion}"
                 )
             }
@@ -464,7 +466,7 @@ abstract class VersionCatalogUpdateTask : DefaultTask() {
                 // only warn for versions that we can resolve / handle
                 if (resolvedVersion != null) {
                     if (!didOutputPreamble) {
-                        project.logger.warn(
+                        logger.warn(
                             "Some libraries declared in the version catalog did not match the resolved version used this project.\n" +
                                 "This mismatch can occur when a version is declared that does not exist, or when a dependency is referenced by a transitive dependency that requires a different version.\n" +
                                 "The version in the version catalog has been updated to the actual version. If this is not what you want, consider using a strict version definition.\n\n" +
@@ -476,7 +478,7 @@ abstract class VersionCatalogUpdateTask : DefaultTask() {
                         is VersionDefinition.Reference -> " (${version.ref})"
                         else -> ""
                     }
-                    project.logger.warn(
+                    logger.warn(
                         " - ${dependency.group}:${dependency.name} (libs.${
                         declaredCatalogEntry.key.replace(
                             '-',
@@ -489,39 +491,17 @@ abstract class VersionCatalogUpdateTask : DefaultTask() {
         }
     }
 
-    /**
-     * Get the resolved build script dependencies for the given project and any subprojects
-     *
-     * @param project project to get the dependencies for
-     * @return a set of [ResolvedArtifact], may be empty
-     */
-    private fun getResolvedBuildScriptArtifacts(project: Project): Set<ResolvedArtifact> {
-        val projectResolvedArtifacts =
-            project.buildscript.configurations.firstOrNull()?.resolvedConfiguration?.resolvedArtifacts?.filterNotNull()
-                ?.toSet()
-                ?: (emptySet())
-        return if (project.subprojects.isNotEmpty()) {
-            project.subprojects.map { getResolvedBuildScriptArtifacts(it) }.flatten().toSet() + projectResolvedArtifacts
-        } else {
-            projectResolvedArtifacts
-        }
-    }
-
     private fun resolvePluginIds(
-        buildScriptArtifacts: Set<ResolvedArtifact>,
+        buildScriptArtifacts: Set<BuildScriptArtifact>,
         versionCatalog: VersionCatalog
     ): VersionCatalog {
         val moduleIds = versionCatalog.libraries.values.map { it.module }
         val knownPluginModules = versionCatalog.plugins.values.map { "${it.id}.gradle.plugins" }
 
         val plugins = buildScriptArtifacts.mapNotNull { resolvedArtifact ->
-            val module = (resolvedArtifact.id as? ModuleComponentArtifactIdentifier)?.let {
-                "${it.componentIdentifier.moduleIdentifier.group}:${it.componentIdentifier.moduleIdentifier.name}"
-            }
-
-            if (module != null && moduleIds.contains(module) && !knownPluginModules.contains(module)) {
+            if (moduleIds.contains(resolvedArtifact.module) && !knownPluginModules.contains(resolvedArtifact.module)) {
                 checkGradlePluginDescriptor(resolvedArtifact.file).map {
-                    it to module
+                    it to resolvedArtifact.module
                 }
             } else {
                 null
@@ -535,7 +515,7 @@ abstract class VersionCatalogUpdateTask : DefaultTask() {
         val jarFile = try {
             JarFile(file)
         } catch (ex: Exception) {
-            project.logger.debug("Could not check ${file.absolutePath} for Gradle plugin descriptors")
+            logger.debug("Could not check ${file.absolutePath} for Gradle plugin descriptors")
             null
         } ?: return emptySet()
 
