@@ -15,6 +15,7 @@
 */
 package nl.littlerobots.vcu.plugin
 
+import nl.littlerobots.vcu.plugin.model.createBuildScriptArtifactProperty
 import org.gradle.api.GradleException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
@@ -143,6 +144,7 @@ class VersionCatalogUpdatePlugin : Plugin<Project> {
             )
             task.sortByKey.set(versionCatalogConfig.sortByKey)
             task.catalogFile.set(versionCatalogConfig.catalogFile.asFile)
+            task.buildScriptArtifacts.set(createBuildScriptArtifactProperty(project))
         }
 
         project.pluginManager.withPlugin(VERSIONS_PLUGIN_ID) {
