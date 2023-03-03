@@ -15,7 +15,6 @@
 */
 package nl.littlerobots.vcu.plugin
 
-import com.github.benmanes.gradle.versions.updates.DependencyUpdatesTask
 import org.gradle.api.GradleException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
@@ -56,11 +55,13 @@ class VersionCatalogUpdatePlugin : Plugin<Project> {
         }
 
         project.pluginManager.withPlugin(VERSIONS_PLUGIN_ID) {
-            project.tasks.named(DEPENDENCY_UPDATES_TASK_NAME, DependencyUpdatesTask::class.java) {
-                reportJson.set(File(project.file(it.outputDir), "${it.reportfileName}.json"))
-                it.outputFormatter = "json,xml,plain"
-                it.checkConstraints = true
-                it.checkBuildEnvironmentConstraints = true
+            project.tasks.named(DEPENDENCY_UPDATES_TASK_NAME) {
+                val outputDir = it.property("outputDir") as String
+                val reportFileName = it.property("reportfileName") as String
+                reportJson.set(File(project.file(outputDir), "$reportFileName.json"))
+                it.setProperty("outputFormatter", "json,xml,plain")
+                it.setProperty("checkConstraints", true)
+                it.setProperty("checkBuildEnvironmentConstraints", true)
             }
         }
     }
@@ -146,7 +147,7 @@ class VersionCatalogUpdatePlugin : Plugin<Project> {
 
         project.pluginManager.withPlugin(VERSIONS_PLUGIN_ID) {
             val dependencyUpdatesTask =
-                project.tasks.named(DEPENDENCY_UPDATES_TASK_NAME, DependencyUpdatesTask::class.java)
+                project.tasks.named(DEPENDENCY_UPDATES_TASK_NAME)
             catalogUpdatesTask.configure {
                 it.dependsOn(dependencyUpdatesTask)
             }
