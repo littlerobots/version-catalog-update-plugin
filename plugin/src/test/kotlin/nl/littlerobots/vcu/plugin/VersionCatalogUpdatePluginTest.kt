@@ -571,6 +571,234 @@ class VersionCatalogUpdatePluginTest {
     }
 
     @Test
+    fun `available update for plugin by descriptor with version condition emits warning`() {
+        val reportJson = tempDir.newFile()
+
+        buildFile.writeText(
+            """
+            plugins {
+                id "nl.littlerobots.version-catalog-update"
+            }
+
+            tasks.named("versionCatalogUpdate").configure {
+                it.reportJson = file("${reportJson.name}")
+            }
+            """.trimIndent()
+        )
+
+        reportJson.writeText(
+            """
+            {
+                "outdated": {
+                    "dependencies": [
+                        {
+                            "group": "nl.littlerobots.vcu",
+                            "available": {
+                                "release": null,
+                                "milestone": "2.0.0",
+                                "integration": null
+                            },
+                            "userReason": null,
+                            "version": "0.7.0",
+                            "projectUrl": "https://github.com/",
+                            "name": "nl.littlerobots.version-catalog-update.gradle.plugin"
+                        }
+                    ]
+                }            }
+            """.trimIndent()
+        )
+
+        val toml = """
+                [plugins]
+                vcu = { id = "nl.littlerobots.version-catalog-update", version = { strictly = "1.0.0" } }
+
+        """.trimIndent()
+
+        File(tempDir.root, "gradle").mkdir()
+        File(tempDir.root, "gradle/libs.versions.toml").writeText(toml)
+
+        val buildResult = GradleRunner.create()
+            .withProjectDir(tempDir.root)
+            .withArguments("versionCatalogUpdate")
+            .withPluginClasspath()
+            .withDebug(true)
+            .build()
+
+        val libs = File(tempDir.root, "gradle/libs.versions.toml").readText()
+
+        assertEquals(
+            toml,
+            libs
+        )
+
+        assertTrue(
+            buildResult.output.contains(
+                """
+                   There are plugins using a version condition that could be updated:
+                    - nl.littlerobots.version-catalog-update (vcu) -> 2.0.0
+
+                """.trimIndent()
+            )
+        )
+    }
+
+    @Test
+    fun `available update for plugin by artifact with version condition emits warning`() {
+        val reportJson = tempDir.newFile()
+
+        buildFile.writeText(
+            """
+            buildscript {
+                repositories {
+                    gradlePluginPortal()
+                }
+                dependencies {
+                    classpath "com.github.ben-manes:gradle-versions-plugin:0.46.0"
+                }
+            }
+
+            plugins {
+                id "nl.littlerobots.version-catalog-update"
+            }
+
+            tasks.named("versionCatalogUpdate").configure {
+                it.reportJson = file("${reportJson.name}")
+            }
+            """.trimIndent()
+        )
+
+        reportJson.writeText(
+            """
+            {
+                "outdated": {
+                    "dependencies": [
+                        {
+                            "group": "com.github.ben-manes",
+                            "available": {
+                                "release": null,
+                                "milestone": "2.0.0",
+                                "integration": null
+                            },
+                            "userReason": null,
+                            "version": "0.7.0",
+                            "projectUrl": "https://github.com/",
+                            "name": "gradle-versions-plugin"
+                        }
+                    ]
+                }            }
+            """.trimIndent()
+        )
+
+        val toml = """
+                [plugins]
+                versions = { id = "com.github.ben-manes.versions", version = { strictly = "1.0.0" } }
+
+        """.trimIndent()
+
+        File(tempDir.root, "gradle").mkdir()
+        File(tempDir.root, "gradle/libs.versions.toml").writeText(toml)
+
+        val buildResult = GradleRunner.create()
+            .withProjectDir(tempDir.root)
+            .withArguments("versionCatalogUpdate")
+            .withPluginClasspath()
+            .withDebug(true)
+            .build()
+
+        val libs = File(tempDir.root, "gradle/libs.versions.toml").readText()
+
+        assertEquals(
+            toml,
+            libs
+        )
+
+        assertTrue(
+            buildResult.output.contains(
+                """
+                    There are plugins using a version condition that could be updated:
+                     - com.github.ben-manes.versions (versions) -> 2.0.0
+
+                """.trimIndent()
+            )
+        )
+    }
+
+    @Test
+    fun `available update for plugin with version condition references version group in warning`() {
+        val reportJson = tempDir.newFile()
+
+        buildFile.writeText(
+            """
+            plugins {
+                id "nl.littlerobots.version-catalog-update"
+            }
+
+            tasks.named("versionCatalogUpdate").configure {
+                it.reportJson = file("${reportJson.name}")
+            }
+            """.trimIndent()
+        )
+
+        reportJson.writeText(
+            """
+            {
+                "outdated": {
+                    "dependencies": [
+                        {
+                            "group": "nl.littlerobots.vcu",
+                            "available": {
+                                "release": null,
+                                "milestone": "2.0.0",
+                                "integration": null
+                            },
+                            "userReason": null,
+                            "version": "0.7.0",
+                            "projectUrl": "https://github.com/",
+                            "name": "nl.littlerobots.version-catalog-update.gradle.plugin"
+                        }
+                    ]
+                }            }
+            """.trimIndent()
+        )
+
+        val toml = """
+                [versions]
+                vcu = { strictly = "1.0.0" }
+
+                [plugins]
+                vcu = { id = "nl.littlerobots.version-catalog-update", version.ref = "vcu" }
+
+        """.trimIndent()
+
+        File(tempDir.root, "gradle").mkdir()
+        File(tempDir.root, "gradle/libs.versions.toml").writeText(toml)
+
+        val buildResult = GradleRunner.create()
+            .withProjectDir(tempDir.root)
+            .withArguments("versionCatalogUpdate")
+            .withPluginClasspath()
+            .withDebug(true)
+            .build()
+
+        val libs = File(tempDir.root, "gradle/libs.versions.toml").readText()
+
+        assertEquals(
+            toml,
+            libs
+        )
+
+        assertTrue(
+            buildResult.output.contains(
+                """
+                    There are plugins using a version condition that could be updated:
+                     - nl.littlerobots.version-catalog-update (vcu ref:vcu) -> 2.0.0
+
+                """.trimIndent()
+            )
+        )
+    }
+
+    @Test
     fun `available update for pinned library emits message`() {
         val reportJson = tempDir.newFile()
 

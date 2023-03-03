@@ -32,6 +32,7 @@ import nl.littlerobots.vcu.model.updateFrom
 import nl.littlerobots.vcu.plugin.model.BuildScriptArtifact
 import nl.littlerobots.vcu.versions.VersionReportParser
 import nl.littlerobots.vcu.versions.model.Dependency
+import nl.littlerobots.vcu.versions.model.module
 import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
 import org.gradle.api.artifacts.ModuleIdentifier
@@ -53,6 +54,7 @@ import java.time.format.DateTimeFormatter
 import java.util.jar.JarFile
 
 private const val PROPERTIES_SUFFIX = ".properties"
+private const val GRADLE_PLUGIN_MODULE_POST_FIX = ".gradle.plugin"
 
 abstract class VersionCatalogUpdateTask : DefaultTask() {
     @get:PathSensitive(PathSensitivity.RELATIVE)
@@ -159,6 +161,7 @@ abstract class VersionCatalogUpdateTask : DefaultTask() {
         }
 
         checkForUpdatesForLibrariesWithVersionCondition(updatedCatalog, versionsReportResult.outdated)
+        checkForUpdateForPluginsWithVersionCondition(updatedCatalog, buildScriptArtifacts.get(), versionsReportResult.outdated)
         checkForUpdatedPinnedLibraries(updatedCatalog, catalogWithResolvedPlugins, pins)
         checkForUpdatedPinnedPlugins(updatedCatalog, catalogWithResolvedPlugins, pins)
 
@@ -455,6 +458,57 @@ abstract class VersionCatalogUpdateTask : DefaultTask() {
         }
     }
 
+    private fun checkForUpdateForPluginsWithVersionCondition(
+        catalog: VersionCatalog,
+        buildScriptArtifacts: Set<BuildScriptArtifact>,
+        outdated: Set<Dependency>
+    ) {
+        val pluginsWithVersionCondition = catalog.plugins.filter {
+            it.value.resolvedVersion(catalog) is VersionDefinition.Condition
+        }
+
+        if (pluginsWithVersionCondition.isEmpty()) {
+            return
+        }
+
+        val outdatedPluginIds = outdated.filter {
+            it.module.endsWith(GRADLE_PLUGIN_MODULE_POST_FIX)
+        }.associate {
+            it.name.dropLast(GRADLE_PLUGIN_MODULE_POST_FIX.length) to it.latestVersion
+        } + outdated.filter {
+            !it.name.endsWith(GRADLE_PLUGIN_MODULE_POST_FIX)
+        }.associate {
+            it.module to it.latestVersion
+        }.flatMap { entry ->
+            val buildScriptArtifact = buildScriptArtifacts.firstOrNull { it.module == entry.key }
+            buildScriptArtifact?.let { artifact ->
+                val descriptors = checkGradlePluginDescriptor(artifact.file)
+                descriptors.map {
+                    it to entry.value
+                }
+            } ?: emptyList()
+        }.toMap()
+
+        if (outdatedPluginIds.isNotEmpty()) {
+            logger.warn("There are plugins using a version condition that could be updated:")
+            for (plugin in pluginsWithVersionCondition) {
+                val update = outdatedPluginIds.entries.firstOrNull {
+                    it.key == plugin.value.id
+                }
+
+                if (update != null) {
+                    val versionRef = when (val version = plugin.value.version) {
+                        is VersionDefinition.Reference -> " ref:${version.ref}"
+                        else -> ""
+                    }
+                    logger.warn(
+                        " - ${plugin.value.id} (${plugin.key}$versionRef) -> ${update.value}"
+                    )
+                }
+            }
+        }
+    }
+
     private fun emitExceededWarning(dependencies: Set<Dependency>, catalog: VersionCatalog) {
         var didOutputPreamble = false
         for (dependency in dependencies) {
@@ -496,7 +550,7 @@ abstract class VersionCatalogUpdateTask : DefaultTask() {
         versionCatalog: VersionCatalog
     ): VersionCatalog {
         val moduleIds = versionCatalog.libraries.values.map { it.module }
-        val knownPluginModules = versionCatalog.plugins.values.map { "${it.id}.gradle.plugins" }
+        val knownPluginModules = versionCatalog.plugins.values.map { "${it.id}$GRADLE_PLUGIN_MODULE_POST_FIX" }
 
         val plugins = buildScriptArtifacts.mapNotNull { resolvedArtifact ->
             if (moduleIds.contains(resolvedArtifact.module) && !knownPluginModules.contains(resolvedArtifact.module)) {
