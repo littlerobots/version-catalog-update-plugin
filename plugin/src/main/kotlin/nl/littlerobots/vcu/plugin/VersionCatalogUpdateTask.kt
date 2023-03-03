@@ -83,7 +83,7 @@ abstract class VersionCatalogUpdateTask : DefaultTask() {
     abstract val sortByKey: Property<Boolean>
 
     @get:Input
-    abstract val buildScriptArtifacts: SetProperty<BuildScriptArtifact>
+    internal abstract val buildScriptArtifacts: SetProperty<BuildScriptArtifact>
 
     private val pinRefs by lazy {
         pins.orNull?.getVersionCatalogRefs() ?: emptySet()

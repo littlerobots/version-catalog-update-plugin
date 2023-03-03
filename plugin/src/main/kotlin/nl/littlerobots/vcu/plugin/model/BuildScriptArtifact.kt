@@ -22,9 +22,9 @@ import org.gradle.internal.component.external.model.ModuleComponentArtifactIdent
 import java.io.File
 import java.io.Serializable
 
-data class BuildScriptArtifact(val module: String, val file: File) : Serializable
+internal data class BuildScriptArtifact(val module: String, val file: File) : Serializable
 
-fun createBuildScriptArtifactProperty(project: Project): SetProperty<BuildScriptArtifact> {
+internal fun createBuildScriptArtifactProperty(project: Project): SetProperty<BuildScriptArtifact> {
     val property = project.objects.setProperty(BuildScriptArtifact::class.java)
     property.value(
         project.provider {
