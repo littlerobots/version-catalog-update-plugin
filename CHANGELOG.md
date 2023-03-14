@@ -1,4 +1,11 @@
 # Changelog
+Version 0.8.0
+-------------
+* Added an option to specify the toml file to use for the default tasks [(#92)](https://github.com/littlerobots/version-catalog-update-plugin/issues/92)
+* Added a warning for plugin dependencies with a version condition that can be upgraded, similar to library dependencies. [(#95)](https://github.com/littlerobots/version-catalog-update-plugin/issues/95)
+* Removed the compile-time dependency on the versions plugin. This should fix class path issues when the versions plugin is applied from an init script for example. [(#97)](https://github.com/littlerobots/version-catalog-update-plugin/issues/97)
+* Fixed warnings when configuration cache is enabled [(#103)](https://github.com/littlerobots/version-catalog-update-plugin/issues/103)
+
 Version 0.7.0
 -------------
 * Group tasks [PR #86](https://github.com/littlerobots/version-catalog-update-plugin/pull/86)
