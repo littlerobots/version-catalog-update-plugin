@@ -39,7 +39,7 @@ If you don't have a catalog file yet, one can be created by using the `--create`
 ./gradlew versionCatalogUpdate --create
 ```
 
-This will use the current versions used as detected the versions plugin. After running the build with `--create` `gradle/libs.version.toml` can be edited needed.
+This will use the current versions used as detected the versions plugin. After running the build with `--create` `gradle/libs.versions.toml` can be edited needed.
 You can rename and remove keys that are not applicable; the versions plugin may include dependencies that are internal to Gradle or added by other means, such as plugins adding a dependency.
 
 The plugin will attempt to create versions for artifacts in the same group with a common version.
