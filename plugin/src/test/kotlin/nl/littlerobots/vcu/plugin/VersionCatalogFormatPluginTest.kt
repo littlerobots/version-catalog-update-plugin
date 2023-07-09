@@ -224,4 +224,78 @@ class VersionCatalogFormatPluginTest {
             libs
         )
     }
+
+    @Test
+    fun `formats retains table order`() {
+        buildFile.writeText(
+            """
+            plugins {
+                id "nl.littlerobots.version-catalog-update"
+            }
+
+            // disable to forego the versions plugin requirement
+            tasks.named("versionCatalogUpdate").configure {
+                it.enabled = false
+            }
+
+            versionCatalogUpdate {
+                keep {
+                    keepUnusedVersions = true
+                }
+            }
+            """.trimIndent()
+        )
+
+        val toml = """
+                [versions]
+                myversion = "1.0.0"
+                notused = "1.0.0"
+
+                [plugins]
+                myplugin = "myplugin:1.0.0"
+
+                [bundles]
+                my-bundle = ["test","androidx-test-junit4"]
+
+                [libraries]
+                test = { module = "some.dependency:test", version.ref = "myversion" }
+                androidx-test-junit4 = "androidx.compose.ui:ui-test-junit4:1.1.0-rc02"
+
+        """.trimIndent()
+
+        File(tempDir.root, "gradle").mkdir()
+        File(tempDir.root, "gradle/libs.versions.toml").writeText(toml)
+
+        GradleRunner.create()
+            .withProjectDir(tempDir.root)
+            .withArguments("versionCatalogFormat")
+            .withPluginClasspath()
+            .withDebug(true)
+            .build()
+
+        val libs = File(tempDir.root, "gradle/libs.versions.toml").readText()
+
+        assertEquals(
+            """
+                [versions]
+                myversion = "1.0.0"
+                notused = "1.0.0"
+
+                [plugins]
+                myplugin = "myplugin:1.0.0"
+
+                [bundles]
+                my-bundle = [
+                    "androidx-test-junit4",
+                    "test",
+                ]
+
+                [libraries]
+                androidx-test-junit4 = "androidx.compose.ui:ui-test-junit4:1.1.0-rc02"
+                test = { module = "some.dependency:test", version.ref = "myversion" }
+
+            """.trimIndent(),
+            libs
+        )
+    }
 }

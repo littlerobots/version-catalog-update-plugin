@@ -14,7 +14,7 @@
 * limitations under the License.
 */
 package nl.littlerobots.vcu.model
-
+import nl.littlerobots.vcu.toml.DEFAULT_TABLE_ORDER
 import nl.littlerobots.vcu.toml.toTomlKey
 
 data class VersionCatalog(
@@ -26,6 +26,7 @@ data class VersionCatalog(
     val libraryComments: Comments = Comments(),
     val bundleComments: Comments = Comments(),
     val pluginComments: Comments = Comments(),
+    internal val tableOrder: List<String> = DEFAULT_TABLE_ORDER
 ) {
     /**
      * The effective version definition of a [HasVersion], resolving [VersionDefinition.Reference]

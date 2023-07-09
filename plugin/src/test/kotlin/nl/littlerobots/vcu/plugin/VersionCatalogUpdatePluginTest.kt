@@ -2064,4 +2064,76 @@ class VersionCatalogUpdatePluginTest {
             tomlFile.readText()
         )
     }
+
+    @Test
+    fun `retains order of tables in the verison catalog`() {
+        val reportJson = tempDir.newFile()
+
+        buildFile.writeText(
+            """
+            plugins {
+                id "nl.littlerobots.version-catalog-update"
+            }
+
+            tasks.named("versionCatalogUpdate").configure {
+                it.reportJson = file("${reportJson.name}")
+            }
+
+            versionCatalogUpdate {
+                keep.keepUnusedVersions.set(true)
+                keep.keepUnusedLibraries.set(true)
+                keep.keepUnusedPlugins.set(true)
+            }
+            """.trimIndent()
+        )
+
+        reportJson.writeText("{}")
+
+        val toml = """
+            [bundles]
+            bundle = ["test"]
+
+            [plugins]
+            myplugin = "myplugin:1.0"
+
+            [libraries]
+            test = { module = "androidx.activity:activity-compose", version.ref = "activity" }
+
+            [versions]
+            someVersion = "1.0.0"
+            activity = "1.4.0"
+
+        """.trimIndent()
+
+        val tomlFile = File(tempDir.root, "gradle/libs.versions.toml")
+        File(tempDir.root, "gradle").mkdir()
+        tomlFile.writeText(toml)
+
+        GradleRunner.create()
+            .withProjectDir(tempDir.root)
+            .withArguments("versionCatalogUpdate")
+            .withPluginClasspath()
+            .build()
+
+        assertEquals(
+            """
+                [bundles]
+                bundle = [
+                    "test",
+                ]
+
+                [plugins]
+                myplugin = "myplugin:1.0"
+
+                [libraries]
+                test = { module = "androidx.activity:activity-compose", version.ref = "activity" }
+
+                [versions]
+                activity = "1.4.0"
+                someVersion = "1.0.0"
+
+            """.trimIndent(),
+            tomlFile.readText()
+        )
+    }
 }

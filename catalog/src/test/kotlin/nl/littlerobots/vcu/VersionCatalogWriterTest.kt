@@ -19,6 +19,10 @@ import nl.littlerobots.vcu.model.Library
 import nl.littlerobots.vcu.model.Plugin
 import nl.littlerobots.vcu.model.VersionCatalog
 import nl.littlerobots.vcu.model.VersionDefinition
+import nl.littlerobots.vcu.toml.TABLE_BUNDLES
+import nl.littlerobots.vcu.toml.TABLE_LIBRARIES
+import nl.littlerobots.vcu.toml.TABLE_PLUGINS
+import nl.littlerobots.vcu.toml.TABLE_VERSIONS
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import java.io.StringWriter
@@ -285,6 +289,43 @@ class VersionCatalogWriterTest {
                 test = [
                     "lib",
                 ]
+
+            """.trimIndent(),
+            writer.toString()
+        )
+    }
+
+    @Test
+    fun `writes the tables in specified order`() {
+        val catalogWriter = VersionCatalogWriter()
+        val writer = StringWriter()
+
+        val toml = """
+            [versions]
+            myversion = "1.0.0"
+            [libraries]
+            lib = { module = "nl.littlerobots.test:test", version = "1.0" }
+            [bundles]
+            test = ["lib"]
+
+            [plugins]
+        """.trimIndent()
+
+        val catalog = VersionCatalogParser().parse(toml.byteInputStream())
+        catalogWriter.write(catalog.copy(tableOrder = listOf(TABLE_PLUGINS, TABLE_BUNDLES, TABLE_LIBRARIES, TABLE_VERSIONS)), writer)
+
+        assertEquals(
+            """
+                [bundles]
+                test = [
+                    "lib",
+                ]
+
+                [libraries]
+                lib = "nl.littlerobots.test:test:1.0"
+
+                [versions]
+                myversion = "1.0.0"
 
             """.trimIndent(),
             writer.toString()

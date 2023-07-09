@@ -18,6 +18,10 @@ package nl.littlerobots.vcu
 import nl.littlerobots.vcu.model.Library
 import nl.littlerobots.vcu.model.Plugin
 import nl.littlerobots.vcu.model.VersionDefinition
+import nl.littlerobots.vcu.toml.TABLE_BUNDLES
+import nl.littlerobots.vcu.toml.TABLE_LIBRARIES
+import nl.littlerobots.vcu.toml.TABLE_PLUGINS
+import nl.littlerobots.vcu.toml.TABLE_VERSIONS
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Test
@@ -288,5 +292,39 @@ class VersionCatalogParserTest {
         assertEquals(listOf("# Nice comment"), result.libraryComments.tableComments)
         assertEquals(listOf("# Comment for lib", "# Even more comments"), result.libraryComments.entryComments["lib"])
         assertEquals(listOf("# test bundle comment"), result.bundleComments.entryComments["test"])
+    }
+
+    @Test
+    fun `records the order of the tables`() {
+        val toml = """
+            [libraries]
+            lib = { module = "nl.littlerobots.test:test" }
+
+            [versions]
+            myversion = "1.0"
+
+            [plugins]
+            myplugin = "pluginid:1.0.0"
+
+            [bundles]
+            test = ["lib"]
+
+        """.trimIndent()
+
+        val parser = VersionCatalogParser()
+        val result = parser.parse(toml.byteInputStream())
+        assertEquals(listOf(TABLE_LIBRARIES, TABLE_VERSIONS, TABLE_PLUGINS, TABLE_BUNDLES), result.tableOrder)
+    }
+
+    @Test
+    fun `adds default tables to the the order of the tables`() {
+        val toml = """
+            [libraries]
+            lib = { module = "nl.littlerobots.test:test" }
+        """.trimIndent()
+
+        val parser = VersionCatalogParser()
+        val result = parser.parse(toml.byteInputStream())
+        assertEquals(listOf(TABLE_LIBRARIES, TABLE_VERSIONS, TABLE_BUNDLES, TABLE_PLUGINS), result.tableOrder)
     }
 }
