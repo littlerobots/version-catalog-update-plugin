@@ -21,16 +21,17 @@ import nl.littlerobots.vcu.model.Library
 import nl.littlerobots.vcu.model.Plugin
 import nl.littlerobots.vcu.model.VersionCatalog
 import nl.littlerobots.vcu.model.VersionDefinition
+import nl.littlerobots.vcu.toml.DEFAULT_TABLE_ORDER
+import nl.littlerobots.vcu.toml.TABLE_BUNDLES
+import nl.littlerobots.vcu.toml.TABLE_LIBRARIES
+import nl.littlerobots.vcu.toml.TABLE_PLUGINS
+import nl.littlerobots.vcu.toml.TABLE_VERSIONS
 import java.io.BufferedReader
 import java.io.InputStream
 import java.io.StringReader
 
 private val TABLE_REGEX = Regex("\\[\\s?(versions|libraries|bundles|plugins)\\s?].*")
 private val KEY_REGEX = Regex("^(.*?)=.*")
-private const val TABLE_VERSIONS = "versions"
-private const val TABLE_LIBRARIES = "libraries"
-private const val TABLE_BUNDLES = "bundles"
-private const val TABLE_PLUGINS = "plugins"
 
 class VersionCatalogParser {
 
@@ -46,8 +47,22 @@ class VersionCatalogParser {
         val libraries = catalog.getTable(TABLE_LIBRARIES)?.toDependencyMap() ?: emptyMap()
         val bundles = catalog.getTable(TABLE_BUNDLES)?.toTypedMap<List<String>>() ?: emptyMap()
         val plugins = catalog.getTable(TABLE_PLUGINS)?.toPluginDependencyMap() ?: emptyMap()
+        val orderedTables = (
+            catalog.keys.filter {
+                it == TABLE_VERSIONS || it == TABLE_LIBRARIES || it == TABLE_BUNDLES || it == TABLE_PLUGINS
+            } + DEFAULT_TABLE_ORDER
+            ).distinct()
 
-        return processComments(content, VersionCatalog(versions, libraries, bundles, plugins))
+        return processComments(
+            content,
+            VersionCatalog(
+                versions = versions,
+                libraries = libraries,
+                bundles = bundles,
+                plugins = plugins,
+                tableOrder = orderedTables.toList()
+            )
+        )
     }
 
     private fun processComments(content: String, versionCatalog: VersionCatalog): VersionCatalog {

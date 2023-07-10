@@ -16,3 +16,8 @@
 package nl.littlerobots.vcu.toml
 
 internal fun String.toTomlKey() = replace('.', '-')
+internal const val TABLE_VERSIONS = "versions"
+internal const val TABLE_LIBRARIES = "libraries"
+internal const val TABLE_BUNDLES = "bundles"
+internal const val TABLE_PLUGINS = "plugins"
+internal val DEFAULT_TABLE_ORDER = listOf(TABLE_VERSIONS, TABLE_LIBRARIES, TABLE_BUNDLES, TABLE_PLUGINS)

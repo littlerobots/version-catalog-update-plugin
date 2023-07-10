@@ -20,6 +20,10 @@ import nl.littlerobots.vcu.model.Library
 import nl.littlerobots.vcu.model.Plugin
 import nl.littlerobots.vcu.model.VersionCatalog
 import nl.littlerobots.vcu.model.VersionDefinition
+import nl.littlerobots.vcu.toml.TABLE_BUNDLES
+import nl.littlerobots.vcu.toml.TABLE_LIBRARIES
+import nl.littlerobots.vcu.toml.TABLE_PLUGINS
+import nl.littlerobots.vcu.toml.TABLE_VERSIONS
 import java.io.PrintWriter
 import java.io.Writer
 
@@ -28,81 +32,127 @@ private const val BUNDLE_INDENT = 4
 class VersionCatalogWriter {
     fun write(versionCatalog: VersionCatalog, writer: Writer, commentEntry: (HasVersion) -> Boolean = { false }) {
         val printWriter = PrintWriter(writer)
-        if (versionCatalog.versions.isNotEmpty()) {
-            for (line in versionCatalog.versionComments.tableComments) {
-                printWriter.println(line)
-            }
-            printWriter.println("[versions]")
-            for (version in versionCatalog.versions) {
-                for (comment in versionCatalog.versionComments.getCommentsForKey(version.key)) {
-                    printWriter.println(comment)
+        var shouldAddNewLine = false
+        for (i in versionCatalog.tableOrder.indices) {
+            when (versionCatalog.tableOrder[i]) {
+                TABLE_VERSIONS -> {
+                    if (versionCatalog.versions.isNotEmpty()) {
+                        writeNewLine(printWriter, shouldAddNewLine)
+                        writeVersions(versionCatalog, printWriter)
+                        shouldAddNewLine = true
+                    }
                 }
-                printWriter.println("""${version.key} = ${formatVersion(version.value)}""")
-            }
-        }
-        if (versionCatalog.libraries.isNotEmpty()) {
-            if (versionCatalog.versions.isNotEmpty()) {
-                printWriter.println()
-            }
-            for (line in versionCatalog.libraryComments.tableComments) {
-                printWriter.println(line)
-            }
-            printWriter.println("[libraries]")
-            for (library in versionCatalog.libraries) {
-                for (comment in versionCatalog.libraryComments.getCommentsForKey(library.key)) {
-                    printWriter.println(comment)
-                }
-                if (commentEntry(library.value)) {
-                    printWriter.print("#")
-                }
-                printWriter.println("""${library.key} = ${formatLibrary(library.value)}""")
-            }
-        }
-        if (versionCatalog.bundles.isNotEmpty()) {
-            if (versionCatalog.versions.isNotEmpty() || versionCatalog.libraries.isNotEmpty()) {
-                printWriter.println()
-            }
-            for (comment in versionCatalog.bundleComments.tableComments) {
-                printWriter.println(comment)
-            }
-            printWriter.println("[bundles]")
-            for (bundle in versionCatalog.bundles) {
-                for (comment in versionCatalog.bundleComments.getCommentsForKey(bundle.key)) {
-                    printWriter.println(comment)
-                }
-                val bundleStart = "${bundle.key} = ["
-                printWriter.println(
-                    bundle.value.joinToString(
-                        prefix = bundleStart + System.lineSeparator() + " ".repeat(BUNDLE_INDENT),
-                        separator = System.lineSeparator() + " ".repeat(
-                            BUNDLE_INDENT
-                        ),
-                        postfix = System.lineSeparator() + "]"
-                    ) { "\"$it\"," }
-                )
-            }
-        }
-        if (versionCatalog.plugins.isNotEmpty()) {
-            if (versionCatalog.versions.isNotEmpty() || versionCatalog.bundles.isNotEmpty() || versionCatalog.libraries.isNotEmpty()) {
-                printWriter.println()
-            }
-            for (comment in versionCatalog.pluginComments.tableComments) {
-                printWriter.println(comment)
-            }
-            printWriter.println("[plugins]")
-            for (plugin in versionCatalog.plugins) {
-                for (comment in versionCatalog.pluginComments.getCommentsForKey(plugin.key)) {
-                    printWriter.println(comment)
-                }
-                if (commentEntry(plugin.value)) {
-                    printWriter.print("#")
-                }
-                printWriter.println("${plugin.key} = ${formatPlugin(plugin.value)}")
-            }
-        }
 
+                TABLE_LIBRARIES -> {
+                    if (versionCatalog.libraries.isNotEmpty()) {
+                        writeNewLine(printWriter, shouldAddNewLine)
+                        writeLibraries(versionCatalog, printWriter, commentEntry)
+                        shouldAddNewLine = true
+                    }
+                }
+
+                TABLE_BUNDLES -> {
+                    if (versionCatalog.bundles.isNotEmpty()) {
+                        writeNewLine(printWriter, shouldAddNewLine)
+                        writeBundles(versionCatalog, printWriter)
+                        shouldAddNewLine = true
+                    }
+                }
+
+                TABLE_PLUGINS -> {
+                    if (versionCatalog.plugins.isNotEmpty()) {
+                        writeNewLine(printWriter, shouldAddNewLine)
+                        writePlugins(versionCatalog, printWriter, commentEntry)
+                        shouldAddNewLine = true
+                    }
+                }
+
+                else -> error("Unknown table ${versionCatalog.tableOrder[i]}")
+            }
+        }
         printWriter.flush()
         printWriter.close()
+    }
+
+    private fun writePlugins(
+        versionCatalog: VersionCatalog,
+        printWriter: PrintWriter,
+        commentEntry: (HasVersion) -> Boolean
+    ) {
+        for (comment in versionCatalog.pluginComments.tableComments) {
+            printWriter.println(comment)
+        }
+        printWriter.println("[plugins]")
+        for (plugin in versionCatalog.plugins) {
+            for (comment in versionCatalog.pluginComments.getCommentsForKey(plugin.key)) {
+                printWriter.println(comment)
+            }
+            if (commentEntry(plugin.value)) {
+                printWriter.print("#")
+            }
+            printWriter.println("${plugin.key} = ${formatPlugin(plugin.value)}")
+        }
+    }
+
+    private fun writeBundles(versionCatalog: VersionCatalog, printWriter: PrintWriter) {
+        for (comment in versionCatalog.bundleComments.tableComments) {
+            printWriter.println(comment)
+        }
+        printWriter.println("[bundles]")
+        for (bundle in versionCatalog.bundles) {
+            for (comment in versionCatalog.bundleComments.getCommentsForKey(bundle.key)) {
+                printWriter.println(comment)
+            }
+            val bundleStart = "${bundle.key} = ["
+            printWriter.println(
+                bundle.value.joinToString(
+                    prefix = bundleStart + System.lineSeparator() + " ".repeat(BUNDLE_INDENT),
+                    separator = System.lineSeparator() + " ".repeat(
+                        BUNDLE_INDENT
+                    ),
+                    postfix = System.lineSeparator() + "]"
+                ) { "\"$it\"," }
+            )
+        }
+    }
+
+    private fun writeLibraries(
+        versionCatalog: VersionCatalog,
+        printWriter: PrintWriter,
+        commentEntry: (HasVersion) -> Boolean
+    ) {
+        for (line in versionCatalog.libraryComments.tableComments) {
+            printWriter.println(line)
+        }
+        printWriter.println("[libraries]")
+        for (library in versionCatalog.libraries) {
+            for (comment in versionCatalog.libraryComments.getCommentsForKey(library.key)) {
+                printWriter.println(comment)
+            }
+            if (commentEntry(library.value)) {
+                printWriter.print("#")
+            }
+            printWriter.println("""${library.key} = ${formatLibrary(library.value)}""")
+        }
+    }
+
+    private fun writeNewLine(writer: PrintWriter, shouldAddNewLine: Boolean) {
+        if (shouldAddNewLine) {
+            writer.println()
+        }
+    }
+
+    private fun writeVersions(versionCatalog: VersionCatalog, printWriter: PrintWriter) {
+        for (line in versionCatalog.versionComments.tableComments) {
+            printWriter.println(line)
+        }
+        printWriter.println("[versions]")
+        for (version in versionCatalog.versions) {
+            for (comment in versionCatalog.versionComments.getCommentsForKey(version.key)) {
+                printWriter.println(comment)
+            }
+            printWriter.println("""${version.key} = ${formatVersion(version.value)}""")
+        }
     }
 
     private fun formatPlugin(plugin: Plugin): String = when (plugin.version) {
