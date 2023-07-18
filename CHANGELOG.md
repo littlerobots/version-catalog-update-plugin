@@ -1,7 +1,7 @@
 # Changelog
 Version 0.8.1
 -------------
-* Order of sections in the version catalog is now maintained kept [(#113)](https://github.com/littlerobots/version-catalog-update-plugin/issues/113)
+* Order of sections in the version catalog is now maintained [(#113)](https://github.com/littlerobots/version-catalog-update-plugin/issues/113)
 
 Version 0.8.0
 -------------
