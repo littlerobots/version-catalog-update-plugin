@@ -1,4 +1,8 @@
 # Changelog
+Version 0.8.1
+-------------
+* Order of sections in the version catalog is now maintained kept [(#113)](https://github.com/littlerobots/version-catalog-update-plugin/issues/113)
+
 Version 0.8.0
 -------------
 * Added an option to specify the toml file to use for the default tasks [(#92)](https://github.com/littlerobots/version-catalog-update-plugin/issues/92)
