@@ -72,7 +72,11 @@ class VersionCatalogUpdatePlugin : Plugin<Project> {
         versionCatalogConfig: VersionCatalogConfig,
         reportJson: RegularFileProperty
     ) {
-        configureUpdateTask(project, versionCatalogConfig, reportJson)
+        if (project.findProperty("nl.littlerobots.vcu.resolver") == "true") {
+            configureExperimentalUpdateTask(project, versionCatalogConfig)
+        } else {
+            configureUpdateTask(project, versionCatalogConfig, reportJson)
+        }
         configureFormatTask(project, versionCatalogConfig)
         configureApplyTask(project, versionCatalogConfig)
     }
@@ -110,6 +114,41 @@ class VersionCatalogUpdatePlugin : Plugin<Project> {
                 }
             )
             task.catalogFile.set(versionCatalogConfig.catalogFile)
+        }
+    }
+
+    private fun configureExperimentalUpdateTask(project: Project, versionCatalogConfig: VersionCatalogConfig) {
+        val extension = project.extensions.getByType(VersionCatalogUpdateExtension::class.java)
+        val catalogUpdatesTask =
+            project.tasks.register(
+                "${UPDATE_TASK_NAME}${versionCatalogConfig.name.capitalize()}",
+                ExperimentalVersionCatalogUpdateTask::class.java
+            )
+        catalogUpdatesTask.configure {
+            task ->
+            task.pins.set(
+                project.provider {
+                    project.objects.newInstance(
+                        PinsConfigurationInput::class.java,
+                        versionCatalogConfig.pins
+                    )
+                }
+            )
+            task.keep.set(
+                project.provider {
+                    project.objects.newInstance(
+                        KeepConfigurationInput::class.java,
+                        versionCatalogConfig.keep
+                    )
+                }
+            )
+            task.sortByKey.set(versionCatalogConfig.sortByKey)
+            task.catalogFile.set(versionCatalogConfig.catalogFile.asFile)
+            task.notCompatibleWithConfigurationCache("Uses project")
+            task.outputs.upToDateWhen { false }
+            extension.componentSelector?.let {
+                task.componentSelector(it)
+            }
         }
     }
 

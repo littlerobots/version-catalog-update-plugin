@@ -20,6 +20,7 @@ package nl.littlerobots.vcu.plugin
 import org.gradle.api.Action
 import org.gradle.api.NamedDomainObjectContainer
 import org.gradle.api.Project
+import org.gradle.api.artifacts.ComponentSelection
 import org.gradle.api.artifacts.MinimalExternalModuleDependency
 import org.gradle.api.artifacts.ModuleIdentifier
 import org.gradle.api.file.RegularFileProperty
@@ -47,6 +48,13 @@ abstract class VersionCatalogUpdateExtension {
 
     @get:Nested
     abstract val versionCatalogs: NamedDomainObjectContainer<VersionCatalogConfig>
+
+    @get:Optional
+    internal abstract var componentSelector: Action<ComponentSelection>?
+
+    fun componentSelector(action: Action<ComponentSelection>) {
+        componentSelector = action
+    }
 
     fun pin(action: Action<PinConfiguration>) {
         action.execute(pins)
