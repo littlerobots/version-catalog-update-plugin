@@ -26,13 +26,13 @@ class ComponentSelectors {
             return !isStable
         }
 
-        val LATEST = Action<ComponentSelectionWithCurrent> { /* nothing */ }
-        val STABLE = Action<ComponentSelectionWithCurrent> {
+        val LATEST = Action<ComponentSelectionWithCurrentVersion> { /* nothing */ }
+        val STABLE = Action<ComponentSelectionWithCurrentVersion> {
             if (isNonStable(it.candidate.version)) {
                 it.reject("${it.candidate.version} is not a stable version")
             }
         }
-        val DEFAULT = Action<ComponentSelectionWithCurrent> {
+        val DEFAULT = Action<ComponentSelectionWithCurrentVersion> {
             if (isNonStable(it.candidate.version) && !isNonStable(it.currentVersion)) {
                 it.reject("Current version ${it.currentVersion} is stable, update ${it.candidate.version} is non-stable")
             }

@@ -36,7 +36,7 @@ internal class DependencyResolver {
         pluginConfiguration: Configuration,
         dependencyHandler: DependencyHandler,
         versionCatalog: VersionCatalog,
-        componentSelection: (ComponentSelectionWithCurrent) -> Unit
+        componentSelection: (ComponentSelectionWithCurrentVersion) -> Unit
     ): DependencyResolverResult {
         val resolvedCatalog = versionCatalog.resolveVersions()
 
@@ -60,7 +60,7 @@ internal class DependencyResolver {
             // Any error here is swallowed by Gradle, so work around
             try {
                 val currentVersion = requireNotNull(currentVersions["${it.candidate.group}:${it.candidate.module}"])
-                componentSelection(ComponentSelectionWithCurrent(it, currentVersion))
+                componentSelection(ComponentSelectionWithCurrentVersion(it, currentVersion))
             } catch (t: Throwable) {
                 if (selectorError == null) {
                     selectorError = t

@@ -19,7 +19,7 @@ import nl.littlerobots.vcu.model.Library
 import nl.littlerobots.vcu.model.Plugin
 import nl.littlerobots.vcu.model.VersionCatalog
 import nl.littlerobots.vcu.model.VersionDefinition
-import nl.littlerobots.vcu.plugin.resolver.ComponentSelectionWithCurrent
+import nl.littlerobots.vcu.plugin.resolver.ComponentSelectionWithCurrentVersion
 import nl.littlerobots.vcu.plugin.resolver.DependencyResolver
 import nl.littlerobots.vcu.plugin.resolver.DependencyResolverResult
 import org.gradle.api.Action
@@ -30,9 +30,9 @@ import javax.inject.Inject
 abstract class ExperimentalVersionCatalogUpdateTask @Inject constructor(private val objectFactory: ObjectFactory) :
     BaseVersionCatalogUpdateTask() {
     private lateinit var result: DependencyResolverResult
-    private var componentSelectorAction: Action<in ComponentSelectionWithCurrent>? = null
+    private var componentSelectorAction: Action<in ComponentSelectionWithCurrentVersion>? = null
 
-    fun componentSelector(action: Action<in ComponentSelectionWithCurrent>) {
+    fun componentSelector(action: Action<in ComponentSelectionWithCurrentVersion>) {
         this.componentSelectorAction = action
     }
 
