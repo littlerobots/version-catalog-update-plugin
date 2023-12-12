@@ -17,10 +17,10 @@
 
 package nl.littlerobots.vcu.plugin
 
+import nl.littlerobots.vcu.plugin.resolver.ComponentSelectionWithCurrent
 import org.gradle.api.Action
 import org.gradle.api.NamedDomainObjectContainer
 import org.gradle.api.Project
-import org.gradle.api.artifacts.ComponentSelection
 import org.gradle.api.artifacts.MinimalExternalModuleDependency
 import org.gradle.api.artifacts.ModuleIdentifier
 import org.gradle.api.file.RegularFileProperty
@@ -50,9 +50,9 @@ abstract class VersionCatalogUpdateExtension {
     abstract val versionCatalogs: NamedDomainObjectContainer<VersionCatalogConfig>
 
     @get:Optional
-    internal abstract var componentSelector: Action<ComponentSelection>?
+    internal abstract var componentSelector: Action<ComponentSelectionWithCurrent>?
 
-    fun componentSelector(action: Action<ComponentSelection>) {
+    fun componentSelector(action: Action<ComponentSelectionWithCurrent>) {
         componentSelector = action
     }
 
