@@ -15,26 +15,32 @@
 */
 package nl.littlerobots.vcu.plugin.resolver
 
-import org.gradle.api.Action
-
-class ComponentSelectors {
+class VersionSelectors {
     companion object {
-        private fun isNonStable(version: String): Boolean {
+        private fun isStable(version: String): Boolean {
             val stableKeyword = listOf("RELEASE", "FINAL", "GA").any { version.toUpperCase().contains(it) }
             val regex = "^[0-9,.v-]+(-r)?$".toRegex()
             val isStable = stableKeyword || regex.matches(version)
-            return !isStable
+            return isStable
         }
 
-        val LATEST = Action<ComponentSelectionWithCurrentVersion> { /* nothing */ }
-        val STABLE = Action<ComponentSelectionWithCurrentVersion> {
-            if (isNonStable(it.candidate.version)) {
-                it.reject("${it.candidate.version} is not a stable version")
+        val LATEST = object : ModuleVersionSelector {
+            override fun select(candidate: ModuleVersionCandidate): Boolean {
+                return true
             }
         }
-        val DEFAULT = Action<ComponentSelectionWithCurrentVersion> {
-            if (isNonStable(it.candidate.version) && !isNonStable(it.currentVersion)) {
-                it.reject("Current version ${it.currentVersion} is stable, update ${it.candidate.version} is non-stable")
+        val STABLE = object : ModuleVersionSelector {
+            override fun select(candidate: ModuleVersionCandidate): Boolean {
+                return isStable(candidate.candidate.version)
+            }
+        }
+        val DEFAULT = object : ModuleVersionSelector {
+            override fun select(candidate: ModuleVersionCandidate): Boolean {
+                return (isStable(candidate.candidate.version) && isStable(candidate.currentVersion)) || (
+                    !isStable(
+                        candidate.candidate.version
+                    ) && !isStable(candidate.currentVersion)
+                    )
             }
         }
     }

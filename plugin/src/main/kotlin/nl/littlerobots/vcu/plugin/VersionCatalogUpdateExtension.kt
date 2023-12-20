@@ -17,7 +17,7 @@
 
 package nl.littlerobots.vcu.plugin
 
-import nl.littlerobots.vcu.plugin.resolver.ComponentSelectionWithCurrentVersion
+import nl.littlerobots.vcu.plugin.resolver.ModuleVersionSelector
 import org.gradle.api.Action
 import org.gradle.api.NamedDomainObjectContainer
 import org.gradle.api.Project
@@ -50,10 +50,10 @@ abstract class VersionCatalogUpdateExtension {
     abstract val versionCatalogs: NamedDomainObjectContainer<VersionCatalogConfig>
 
     @get:Optional
-    internal abstract var componentSelector: Action<ComponentSelectionWithCurrentVersion>?
+    internal abstract var versionSelector: ModuleVersionSelector?
 
-    fun componentSelector(action: Action<ComponentSelectionWithCurrentVersion>) {
-        componentSelector = action
+    fun versionSelector(selector: ModuleVersionSelector) {
+        this.versionSelector = selector
     }
 
     fun pin(action: Action<PinConfiguration>) {

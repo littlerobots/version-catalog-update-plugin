@@ -19,10 +19,10 @@ import nl.littlerobots.vcu.model.Library
 import nl.littlerobots.vcu.model.Plugin
 import nl.littlerobots.vcu.model.VersionCatalog
 import nl.littlerobots.vcu.model.VersionDefinition
-import nl.littlerobots.vcu.plugin.resolver.ComponentSelectionWithCurrentVersion
 import nl.littlerobots.vcu.plugin.resolver.DependencyResolver
 import nl.littlerobots.vcu.plugin.resolver.DependencyResolverResult
-import org.gradle.api.Action
+import nl.littlerobots.vcu.plugin.resolver.ModuleVersionCandidate
+import nl.littlerobots.vcu.plugin.resolver.ModuleVersionSelector
 import org.gradle.api.model.ObjectFactory
 import org.gradle.api.tasks.TaskAction
 import javax.inject.Inject
@@ -30,10 +30,14 @@ import javax.inject.Inject
 abstract class ExperimentalVersionCatalogUpdateTask @Inject constructor(private val objectFactory: ObjectFactory) :
     BaseVersionCatalogUpdateTask() {
     private lateinit var result: DependencyResolverResult
-    private var componentSelectorAction: Action<in ComponentSelectionWithCurrentVersion>? = null
+    private var versionSelector: ModuleVersionSelector = object : ModuleVersionSelector {
+        override fun select(candidate: ModuleVersionCandidate): Boolean {
+            return true
+        }
+    }
 
-    fun componentSelector(action: Action<in ComponentSelectionWithCurrentVersion>) {
-        this.componentSelectorAction = action
+    fun versionSelector(filter: ModuleVersionSelector) {
+        this.versionSelector = filter
     }
 
     override fun onVersionCatalogUpdated(updatedCatalog: VersionCatalog, currentCatalog: VersionCatalog) {
@@ -183,10 +187,9 @@ abstract class ExperimentalVersionCatalogUpdateTask @Inject constructor(private 
             project.buildscript.configurations.detachedConfiguration(),
             project.buildscript.configurations.detachedConfiguration(),
             project.dependencies,
-            currentCatalog
-        ) {
-            componentSelectorAction?.execute(it)
-        }
+            currentCatalog,
+            versionSelector
+        )
         this.result = result
         return result.versionCatalog
     }

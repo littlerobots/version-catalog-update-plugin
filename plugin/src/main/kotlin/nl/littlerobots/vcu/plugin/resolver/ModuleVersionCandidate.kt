@@ -15,9 +15,9 @@
 */
 package nl.littlerobots.vcu.plugin.resolver
 
-import org.gradle.api.artifacts.ComponentSelection
+import org.gradle.api.artifacts.component.ModuleComponentIdentifier
 
-class ComponentSelectionWithCurrentVersion(
-    private val delegate: ComponentSelection,
+class ModuleVersionCandidate(
+    val candidate: ModuleComponentIdentifier,
     val currentVersion: String
-) : ComponentSelection by delegate
+)

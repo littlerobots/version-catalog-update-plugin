@@ -16,7 +16,7 @@
 package nl.littlerobots.vcu.plugin
 
 import nl.littlerobots.vcu.plugin.model.createBuildScriptArtifactProperty
-import nl.littlerobots.vcu.plugin.resolver.ComponentSelectors
+import nl.littlerobots.vcu.plugin.resolver.VersionSelectors
 import org.gradle.api.GradleException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
@@ -147,8 +147,8 @@ class VersionCatalogUpdatePlugin : Plugin<Project> {
             task.catalogFile.set(versionCatalogConfig.catalogFile.asFile)
             task.notCompatibleWithConfigurationCache("Uses project")
             task.outputs.upToDateWhen { false }
-            val componentSelector = extension.componentSelector ?: ComponentSelectors.DEFAULT
-            task.componentSelector(componentSelector)
+            val versionSelector = extension.versionSelector ?: VersionSelectors.DEFAULT
+            task.versionSelector(versionSelector)
         }
     }
 

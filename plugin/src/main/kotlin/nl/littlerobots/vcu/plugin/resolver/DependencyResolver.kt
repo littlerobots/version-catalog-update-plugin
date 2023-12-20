@@ -36,7 +36,7 @@ internal class DependencyResolver {
         pluginConfiguration: Configuration,
         dependencyHandler: DependencyHandler,
         versionCatalog: VersionCatalog,
-        componentSelection: (ComponentSelectionWithCurrentVersion) -> Unit
+        moduleVersionSelector: ModuleVersionSelector
     ): DependencyResolverResult {
         val resolvedCatalog = versionCatalog.resolveVersions()
 
@@ -60,7 +60,9 @@ internal class DependencyResolver {
             // Any error here is swallowed by Gradle, so work around
             try {
                 val currentVersion = requireNotNull(currentVersions["${it.candidate.group}:${it.candidate.module}"])
-                componentSelection(ComponentSelectionWithCurrentVersion(it, currentVersion))
+                if (!moduleVersionSelector.select(ModuleVersionCandidate(it.candidate, currentVersion))) {
+                    it.reject("${it.candidate.version} rejected by version selector as an upgrade for version $currentVersion")
+                }
             } catch (t: Throwable) {
                 if (selectorError == null) {
                     selectorError = t
