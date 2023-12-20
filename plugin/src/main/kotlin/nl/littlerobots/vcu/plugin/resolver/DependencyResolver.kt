@@ -25,7 +25,6 @@ import org.gradle.api.artifacts.ComponentSelection
 import org.gradle.api.artifacts.Configuration
 import org.gradle.api.artifacts.DependencyConstraint
 import org.gradle.api.artifacts.dsl.DependencyHandler
-import org.gradle.api.attributes.java.TargetJvmVersion
 import java.util.concurrent.TimeUnit
 
 internal class DependencyResolver {
@@ -272,7 +271,6 @@ internal class DependencyResolver {
         configuration.isCanBeResolved = true
         configuration.isVisible = false
         configuration.isCanBeConsumed = false
-        configuration.attributes.attribute(TargetJvmVersion.TARGET_JVM_VERSION_ATTRIBUTE, Integer.MAX_VALUE)
         configuration.resolutionStrategy.componentSelection { rules ->
             rules.all {
                 componentSelection(it)
