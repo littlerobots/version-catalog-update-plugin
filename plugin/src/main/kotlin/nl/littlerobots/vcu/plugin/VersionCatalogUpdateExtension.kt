@@ -17,6 +17,7 @@
 
 package nl.littlerobots.vcu.plugin
 
+import nl.littlerobots.vcu.plugin.resolver.ModuleVersionCandidate
 import nl.littlerobots.vcu.plugin.resolver.ModuleVersionSelector
 import org.gradle.api.Action
 import org.gradle.api.NamedDomainObjectContainer
@@ -103,4 +104,12 @@ internal data class GroupRef(val group: String) : VersionCatalogRef()
 
 fun Project.versionCatalogUpdate(block: VersionCatalogUpdateExtension.() -> Unit) {
     extensions.configure(VersionCatalogUpdateExtension::class.java, block)
+}
+
+fun VersionCatalogUpdateExtension.versionSelector(block: (ModuleVersionCandidate) -> Boolean) {
+    this.versionSelector(object : ModuleVersionSelector {
+        override fun select(candidate: ModuleVersionCandidate): Boolean {
+            return block(candidate)
+        }
+    })
 }
