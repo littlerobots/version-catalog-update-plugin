@@ -184,6 +184,10 @@ class VersionCatalogUpdatePlugin : Plugin<Project> {
             task.sortByKey.set(versionCatalogConfig.sortByKey)
             task.catalogFile.set(versionCatalogConfig.catalogFile.asFile)
             task.buildScriptArtifacts.set(createBuildScriptArtifactProperty(project))
+            task.doLast {
+                it.logger.warn("\nA new experimental resolver for dependencies is available, see https://github.com/littlerobots/version-catalog-update-plugin/pull/125 for more details")
+                it.logger.warn("Please try it out on your project and report any issues you encounter at https://github.com/littlerobots/version-catalog-update-plugin/issues")
+            }
         }
 
         project.pluginManager.withPlugin(VERSIONS_PLUGIN_ID) {
