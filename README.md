@@ -325,7 +325,7 @@ versionCatalogUpdate {
             sortByKey.set(false)
         }
         create("special") {
-            catalogFile.set)file("catalogs/special.versions.toml"))
+            catalogFile.set(file("catalogs/special.versions.toml"))
             // overrides the options set above
             keep {
                 keepUnusedVersions.set(true)
