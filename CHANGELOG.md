@@ -1,4 +1,15 @@
 # Changelog
+Version 0.8.2
+-------------
+🚨 This version introduces a new way to resolve dependencies, no longer depending on the Gradle versions plugin 🚨
+This functionality is *not* enabled by default yet, but can be enabled by setting a property. Please try it out and report any issues you might find!
+
+See [the PR](https://github.com/littlerobots/version-catalog-update-plugin/pull/125) on how to enable the new resolver,
+what the behavioural changes are and some of the rationale behind the change.
+
+* Versions grouping picks the most common version [(#127)](https://github.com/littlerobots/version-catalog-update-plugin/issues/127)
+* Resolve dependencies from the plugin itself [(#123)](https://github.com/littlerobots/version-catalog-update-plugin/issues/123)
+
 Version 0.8.1
 -------------
 * Order of sections in the version catalog is now maintained [(#113)](https://github.com/littlerobots/version-catalog-update-plugin/issues/113)
