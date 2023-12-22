@@ -16,6 +16,7 @@
 package nl.littlerobots.vcu.plugin
 
 import nl.littlerobots.vcu.plugin.model.createBuildScriptArtifactProperty
+import nl.littlerobots.vcu.plugin.resolver.VersionSelectors
 import org.gradle.api.GradleException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
@@ -72,7 +73,11 @@ class VersionCatalogUpdatePlugin : Plugin<Project> {
         versionCatalogConfig: VersionCatalogConfig,
         reportJson: RegularFileProperty
     ) {
-        configureUpdateTask(project, versionCatalogConfig, reportJson)
+        if (project.findProperty("nl.littlerobots.vcu.resolver") == "true") {
+            configureExperimentalUpdateTask(project, versionCatalogConfig)
+        } else {
+            configureUpdateTask(project, versionCatalogConfig, reportJson)
+        }
         configureFormatTask(project, versionCatalogConfig)
         configureApplyTask(project, versionCatalogConfig)
     }
@@ -113,6 +118,40 @@ class VersionCatalogUpdatePlugin : Plugin<Project> {
         }
     }
 
+    private fun configureExperimentalUpdateTask(project: Project, versionCatalogConfig: VersionCatalogConfig) {
+        val extension = project.extensions.getByType(VersionCatalogUpdateExtension::class.java)
+        val catalogUpdatesTask =
+            project.tasks.register(
+                "${UPDATE_TASK_NAME}${versionCatalogConfig.name.capitalize()}",
+                ExperimentalVersionCatalogUpdateTask::class.java
+            )
+        catalogUpdatesTask.configure {
+            task ->
+            task.pins.set(
+                project.provider {
+                    project.objects.newInstance(
+                        PinsConfigurationInput::class.java,
+                        versionCatalogConfig.pins
+                    )
+                }
+            )
+            task.keep.set(
+                project.provider {
+                    project.objects.newInstance(
+                        KeepConfigurationInput::class.java,
+                        versionCatalogConfig.keep
+                    )
+                }
+            )
+            task.sortByKey.set(versionCatalogConfig.sortByKey)
+            task.catalogFile.set(versionCatalogConfig.catalogFile.asFile)
+            task.notCompatibleWithConfigurationCache("Uses project")
+            task.outputs.upToDateWhen { false }
+            val versionSelector = extension.versionSelector ?: VersionSelectors.DEFAULT
+            task.versionSelector(versionSelector)
+        }
+    }
+
     private fun configureUpdateTask(
         project: Project,
         versionCatalogConfig: VersionCatalogConfig,
@@ -145,6 +184,10 @@ class VersionCatalogUpdatePlugin : Plugin<Project> {
             task.sortByKey.set(versionCatalogConfig.sortByKey)
             task.catalogFile.set(versionCatalogConfig.catalogFile.asFile)
             task.buildScriptArtifacts.set(createBuildScriptArtifactProperty(project))
+            task.doLast {
+                it.logger.warn("\nA new experimental resolver for dependencies is available, see https://github.com/littlerobots/version-catalog-update-plugin/pull/125 for more details")
+                it.logger.warn("Please try it out on your project and report any issues you encounter at https://github.com/littlerobots/version-catalog-update-plugin/issues")
+            }
         }
 
         project.pluginManager.withPlugin(VERSIONS_PLUGIN_ID) {
