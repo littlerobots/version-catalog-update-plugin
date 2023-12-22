@@ -14,6 +14,7 @@
 * limitations under the License.
 */
 package nl.littlerobots.vcu.model
+
 import nl.littlerobots.vcu.toml.DEFAULT_TABLE_ORDER
 import nl.littlerobots.vcu.toml.toTomlKey
 
@@ -73,10 +74,12 @@ fun VersionCatalog.updateFrom(
                 VersionDefinition.Unspecified -> {
                     it to entry.value.copy(version = VersionDefinition.Unspecified)
                 }
+
                 is VersionDefinition.Condition -> {
                     // keep the version condition
                     it to entry.value.copy(version = currentLib.version)
                 }
+
                 else -> {
                     it to entry.value
                 }
@@ -238,9 +241,15 @@ private fun VersionCatalog.collectVersionReferenceForGroups(
 
     for (library in librariesWithoutVersionRef) {
         val group = resolvedVersions[library.value.group] ?: throw IllegalStateException()
-        // Find the first simple version, if there is one (might be all conditional versions at this point)
-        val groupVersion = group.firstOrNull { it.version is VersionDefinition.Simple }?.version as? VersionDefinition.Simple ?: break
-        if (group.all { it.version == groupVersion } && library.value.version == groupVersion) {
+        val groupVersions = group.asSequence().mapNotNull { (it.version as? VersionDefinition.Simple)?.version }
+            .groupBy { it }.filter {
+                it.value.size > 1
+            }.map {
+                it.value
+            }.maxByOrNull {
+                it.size
+            } ?: break
+        if ((library.value.version as? VersionDefinition.Simple)?.version == groupVersions.first()) {
             val versionRef = librariesByGroup[library.value.group]?.firstOrNull {
                 it.version is VersionDefinition.Reference
             }?.version as? VersionDefinition.Reference ?: newVersions[library.value.group]
@@ -248,7 +257,7 @@ private fun VersionCatalog.collectVersionReferenceForGroups(
             if (versionRef == null) {
                 val versionRefKey = library.value.group.replace(".", "-")
                 if (versions[versionRefKey] == null) {
-                    versions[versionRefKey] = VersionDefinition.Simple(groupVersion.version)
+                    versions[versionRefKey] = VersionDefinition.Simple(groupVersions.first())
                     libraries[library.key] = library.value.copy(version = VersionDefinition.Reference(versionRefKey))
                     newVersions[library.value.group] = VersionDefinition.Reference(versionRefKey)
                 } // else bail out and leave as a normal version
