@@ -104,6 +104,65 @@ class VersionCatalogTest {
     }
 
     @Test
+    fun `updateCatalog adds version for modules with the most common version`() {
+        val catalog = VersionCatalog(
+            emptyMap(),
+            emptyMap(),
+            emptyMap(),
+            emptyMap()
+        )
+        val updatedCatalog = VersionCatalog(
+            emptyMap(),
+            mapOf(
+                "generated-library-reference" to Library(
+                    module = "androidx.camera:camera-camera2",
+                    version = VersionDefinition.Simple("1.3.1")
+                ),
+                "generated-library-reference2" to Library(
+                    module = "androidx.camera:camera-core",
+                    version = VersionDefinition.Simple("1.3.1")
+                ),
+                "generated-library-reference3" to Library(
+                    module = "androidx.camera:camera-mlkit-vision",
+                    version = VersionDefinition.Simple("1.4.0-alpha03")
+                )
+            ),
+            emptyMap(),
+            emptyMap()
+        )
+
+        val result = catalog.updateFrom(updatedCatalog, addNew = true)
+
+        assertEquals(3, result.libraries.size)
+        assertNotNull(result.libraries["generated-library-reference"])
+        assertNotNull(result.libraries["generated-library-reference2"])
+        assertNotNull(result.libraries["generated-library-reference3"])
+        assertNotNull(result.versions["androidx-camera"])
+        assertEquals(
+            Library(
+                module = "androidx.camera:camera-camera2",
+                version = VersionDefinition.Reference("androidx-camera")
+            ),
+            result.libraries["generated-library-reference"]
+        )
+        assertEquals(
+            Library(
+                module = "androidx.camera:camera-core",
+                version = VersionDefinition.Reference("androidx-camera")
+            ),
+            result.libraries["generated-library-reference2"]
+        )
+        assertEquals(
+            Library(
+                module = "androidx.camera:camera-mlkit-vision",
+                version = VersionDefinition.Simple("1.4.0-alpha03")
+            ),
+            result.libraries["generated-library-reference3"]
+        )
+        assertEquals(VersionDefinition.Simple("1.3.1"), result.versions["androidx-camera"])
+    }
+
+    @Test
     fun `updateCatalog updates version reference for group id if all on the same version`() {
         val catalog = VersionCatalog(
             mapOf("my-lib" to VersionDefinition.Simple("1.0")),
