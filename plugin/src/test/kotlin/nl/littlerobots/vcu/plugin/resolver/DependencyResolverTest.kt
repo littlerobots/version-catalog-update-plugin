@@ -157,6 +157,47 @@ class DependencyResolverTest {
         assertTrue(result.richVersions.libraries.isNotEmpty())
     }
 
+    @Test
+    // https://github.com/littlerobots/version-catalog-update-plugin/issues/129
+    fun `Resolves the original library for variants though Gradle module data`() {
+        val project = ProjectBuilder.builder().withName("test").build()
+        val resolver = DependencyResolver()
+        val catalog = VersionCatalogParser().parse(
+            """
+           [libraries]
+           # on the jvm this will actually resolve to apollo-api-jvm
+           apollo-api = "com.apollographql.apollo3:apollo-api:3.8.1"
+
+            """.trimIndent().asStream()
+        )
+
+        project.repositories.add(project.repositories.mavenCentral())
+
+        val checkedCandidates = mutableSetOf<ModuleVersionCandidate>()
+
+        val result = resolver.resolveFromCatalog(
+            project.configurations.detachedConfiguration(),
+            project.configurations.detachedConfiguration(),
+            project.buildscript.configurations.detachedConfiguration(),
+            project.buildscript.configurations.detachedConfiguration(),
+            project.dependencies,
+            catalog,
+            object : ModuleVersionSelector {
+                override fun select(candidate: ModuleVersionCandidate): Boolean {
+                    checkedCandidates.add(candidate)
+                    return candidate.candidate.version == "3.8.2"
+                }
+            }
+        )
+
+        assertTrue(result.versionCatalog.libraries.isNotEmpty())
+        assertEquals("3.8.2", (result.versionCatalog.libraries.values.first().version as? VersionDefinition.Simple)?.version)
+        assertEquals(
+            setOf("com.apollographql.apollo3:apollo-api"),
+            checkedCandidates.map { "${it.candidate.group}:${it.candidate.module}" }.toSet()
+        )
+    }
+
     private fun String.asStream(): ByteArrayInputStream {
         return ByteArrayInputStream(toByteArray())
     }
