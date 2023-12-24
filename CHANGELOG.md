@@ -1,4 +1,14 @@
 # Changelog
+Version 0.8.3
+-------------
+Fixes and enhancements for the internal resolver:
+
+* Handle variants / redirection correctly ([#129](https://github.com/littlerobots/version-catalog-update-plugin/issues/129))
+* Handle unresolved libraries due to capability conflicts ([#131](https://github.com/littlerobots/version-catalog-update-plugin/issues/131))
+* Per catalog version selectors ([#130](https://github.com/littlerobots/version-catalog-update-plugin/issues/131))
+
+Also fixes an issue where versions weren't correctly grouped to a regression in `0.8.2`
+
 Version 0.8.2
 -------------
 🚨 This version introduces a new way to resolve dependencies, no longer depending on the Gradle versions plugin 🚨
