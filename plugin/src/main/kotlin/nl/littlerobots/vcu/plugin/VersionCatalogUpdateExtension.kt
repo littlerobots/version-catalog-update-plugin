@@ -120,3 +120,11 @@ fun VersionCatalogUpdateExtension.versionSelector(block: (ModuleVersionCandidate
         }
     })
 }
+
+fun VersionCatalogConfig.versionSelector(block: (ModuleVersionCandidate) -> Boolean) {
+    this.versionSelector(object : ModuleVersionSelector {
+        override fun select(candidate: ModuleVersionCandidate): Boolean {
+            return block(candidate)
+        }
+    })
+}
