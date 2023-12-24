@@ -87,6 +87,13 @@ abstract class VersionCatalogConfig @Inject constructor(val name: String) {
 
     @get:Nested
     abstract val keep: KeepConfiguration
+
+    @get:Optional
+    internal abstract var versionSelector: ModuleVersionSelector?
+
+    fun versionSelector(selector: ModuleVersionSelector) {
+        this.versionSelector = selector
+    }
 }
 
 abstract class PinConfiguration : VersionRefConfiguration()
