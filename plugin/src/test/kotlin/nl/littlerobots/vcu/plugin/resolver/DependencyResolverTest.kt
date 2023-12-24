@@ -198,6 +198,42 @@ class DependencyResolverTest {
         )
     }
 
+    @Test
+    // https://github.com/littlerobots/version-catalog-update-plugin/issues/131
+    fun `Handles capability resolving errors for updates`() {
+        val project = ProjectBuilder.builder().withName("test").build()
+        val resolver = DependencyResolver()
+        val catalog = VersionCatalogParser().parse(
+            """
+           [libraries]
+           # Updates to 1.6.x publish for multiple platforms/configurations (jvm/android)
+           compose-foundation = "androidx.compose.foundation:foundation:1.5.4"
+
+            """.trimIndent().asStream()
+        )
+
+        project.repositories.add(project.repositories.google())
+
+        val result = resolver.resolveFromCatalog(
+            project.configurations.detachedConfiguration(),
+            project.configurations.detachedConfiguration(),
+            project.buildscript.configurations.detachedConfiguration(),
+            project.buildscript.configurations.detachedConfiguration(),
+            project.dependencies,
+            catalog,
+            object : ModuleVersionSelector {
+                override fun select(candidate: ModuleVersionCandidate): Boolean {
+                    return candidate.candidate.version == "1.6.0-beta03"
+                }
+            }
+        )
+
+        assertTrue(result.versionCatalog.libraries.isNotEmpty())
+        assertTrue(result.unresolved.libraries.isEmpty())
+        assertTrue(result.exceeded.libraries.isEmpty())
+        assertEquals("1.6.0-beta03", (result.versionCatalog.libraries.values.first().version as? VersionDefinition.Simple)?.version)
+    }
+
     private fun String.asStream(): ByteArrayInputStream {
         return ByteArrayInputStream(toByteArray())
     }
