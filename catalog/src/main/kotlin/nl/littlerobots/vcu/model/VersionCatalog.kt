@@ -248,7 +248,7 @@ private fun VersionCatalog.collectVersionReferenceForGroups(
                 it.value
             }.maxByOrNull {
                 it.size
-            } ?: break
+            } ?: continue
         if ((library.value.version as? VersionDefinition.Simple)?.version == groupVersions.first()) {
             val versionRef = librariesByGroup[library.value.group]?.firstOrNull {
                 it.version is VersionDefinition.Reference
