@@ -58,8 +58,12 @@ internal class DependencyResolver {
         val selector: (ComponentSelection) -> Unit = {
             // Any error here is swallowed by Gradle, so work around
             try {
-                val currentVersion = requireNotNull(currentVersions["${it.candidate.group}:${it.candidate.module}"])
-                if (!moduleVersionSelector.select(ModuleVersionCandidate(it.candidate, currentVersion))) {
+                val currentVersion = currentVersions["${it.candidate.group}:${it.candidate.module}"]
+                // if the version is null, then we don't have this specific artifact in the catalog
+                // This can be caused if the resolved artifact is an alias to a different artifact
+                // Just selecting whatever is presented here _should_ be fine in that case, as the original
+                // artifact passes the version selection first.
+                if (currentVersion != null && !moduleVersionSelector.select(ModuleVersionCandidate(it.candidate, currentVersion))) {
                     it.reject("${it.candidate.version} rejected by version selector as an upgrade for version $currentVersion")
                 }
             } catch (t: Throwable) {
