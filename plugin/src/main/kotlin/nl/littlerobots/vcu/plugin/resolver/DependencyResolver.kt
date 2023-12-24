@@ -24,6 +24,10 @@ import org.gradle.api.GradleException
 import org.gradle.api.artifacts.ComponentSelection
 import org.gradle.api.artifacts.Configuration
 import org.gradle.api.artifacts.DependencyConstraint
+import org.gradle.api.artifacts.ModuleIdentifier
+import org.gradle.api.artifacts.ModuleVersionIdentifier
+import org.gradle.api.artifacts.ResolvedDependency
+import org.gradle.api.artifacts.UnresolvedDependency
 import org.gradle.api.artifacts.dsl.DependencyHandler
 import java.util.concurrent.TimeUnit
 
@@ -38,19 +42,25 @@ internal class DependencyResolver {
         moduleVersionSelector: ModuleVersionSelector
     ): DependencyResolverResult {
         val resolvedCatalog = versionCatalog.resolveVersions()
+        val acceptedVersions = mutableMapOf<Dependency, String>()
+        val currentAcceptedVersions = mutableMapOf<Dependency, String>()
 
-        configureConfiguration(currentLibraryConfiguration) {}
-        configureConfiguration(currentPluginConfiguration) {}
+        configureConfiguration(currentLibraryConfiguration) {
+            currentAcceptedVersions[Dependency(it.candidate.moduleIdentifier)] = it.candidate.version
+        }
+        configureConfiguration(currentPluginConfiguration) {
+            currentAcceptedVersions[Dependency(it.candidate.moduleIdentifier)] = it.candidate.version
+        }
 
         val currentVersions by lazy {
             currentLibraryConfiguration.resolvedConfiguration.lenientConfiguration.firstLevelModuleDependencies.associate {
-                "${it.module.id.module.group}:${it.module.id.module.name}" to it.module.id.version
+                Dependency(it.module.id) to it.module.id.version
             } + currentLibraryConfiguration.resolvedConfiguration.lenientConfiguration.unresolvedModuleDependencies.associate {
-                "${it.selector.module.group}:${it.selector.module.name}" to it.selector.version
+                Dependency(it.selector.module) to it.selector.version
             } + currentPluginConfiguration.resolvedConfiguration.lenientConfiguration.firstLevelModuleDependencies.associate {
-                "${it.module.id.module.group}:${it.module.id.module.name}" to it.module.id.version
+                Dependency(it.module.id) to it.module.id.version
             } + currentPluginConfiguration.resolvedConfiguration.lenientConfiguration.unresolvedModuleDependencies.associate {
-                "${it.selector.module.group}:${it.selector.module.name}" to it.selector.version
+                Dependency(it.selector.module) to it.selector.version
             }
         }
 
@@ -58,13 +68,15 @@ internal class DependencyResolver {
         val selector: (ComponentSelection) -> Unit = {
             // Any error here is swallowed by Gradle, so work around
             try {
-                val currentVersion = currentVersions["${it.candidate.group}:${it.candidate.module}"]
+                val currentVersion = currentVersions[Dependency(it.candidate.moduleIdentifier)]
                 // if the version is null, then we don't have this specific artifact in the catalog
                 // This can be caused if the resolved artifact is an alias to a different artifact
                 // Just selecting whatever is presented here _should_ be fine in that case, as the original
                 // artifact passes the version selection first.
                 if (currentVersion != null && !moduleVersionSelector.select(ModuleVersionCandidate(it.candidate, currentVersion))) {
                     it.reject("${it.candidate.version} rejected by version selector as an upgrade for version $currentVersion")
+                } else if (currentVersion != null) {
+                    acceptedVersions[Dependency(it.candidate.moduleIdentifier)] = it.candidate.version
                 }
             } catch (t: Throwable) {
                 if (selectorError == null) {
@@ -126,10 +138,46 @@ internal class DependencyResolver {
             }
         }
 
+        // this triggers resolving
+        val resolvedLibraryConfiguration = libraryConfiguration.resolvedConfiguration.lenientConfiguration
+        val resolvedPluginConfiguration = pluginConfiguration.resolvedConfiguration.lenientConfiguration
+        val resolvedCurrentLibraryConfiguration = currentLibraryConfiguration.resolvedConfiguration.lenientConfiguration
+        val resolvedCurrentPluginConfiguration = currentPluginConfiguration.resolvedConfiguration.lenientConfiguration
+
         val resolvedLibraries =
-            libraryConfiguration.resolvedConfiguration.lenientConfiguration.firstLevelModuleDependencies
+            acceptedVersions.toMap().filterNot { it.key.isPlugin } + resolvedLibraryConfiguration.firstLevelModuleDependencies.associate {
+                Dependency(it.module.id.module) to it.module.id.version
+            }
+
+        val unresolvedLibraries =
+            resolvedLibraryConfiguration.unresolvedModuleDependencies.map {
+                Dependency(it.selector.module)
+            }.filter {
+                acceptedVersions[it] == null
+            }.associateWith { currentVersions[it] }
+        val unresolvedCurrentLibraries =
+            resolvedCurrentLibraryConfiguration.unresolvedModuleDependencies.map { Dependency(it.selector.module) }.filter {
+                currentAcceptedVersions[it] == null
+            }.associateWith {
+                currentVersions[it]
+            }
         val resolvedPlugins =
-            pluginConfiguration.resolvedConfiguration.lenientConfiguration.firstLevelModuleDependencies
+            acceptedVersions.filter { it.key.isPlugin } +
+                resolvedPluginConfiguration.firstLevelModuleDependencies.associate {
+                    Dependency(it) to it.module.id.version
+                }
+        val unresolvedPlugins =
+            resolvedPluginConfiguration.unresolvedModuleDependencies.map {
+                Dependency(it) to it.selector.version
+            }.filter {
+                acceptedVersions[it.first] == null
+            }.toMap()
+
+        val unresolvedCurrentPlugins = resolvedCurrentPluginConfiguration.unresolvedModuleDependencies.map {
+            Dependency(it.selector.module) to it.selector.version
+        }.filter {
+            currentAcceptedVersions[it.first] == null
+        }.toMap()
 
         if (selectorError != null) {
             throw GradleException("An error occurred when selecting versions", selectorError)
@@ -137,43 +185,43 @@ internal class DependencyResolver {
 
         val catalog = VersionCatalog(
             versions = emptyMap(),
-            libraries = resolvedLibraries.associate {
-                val module = it.module.id
-                "${module.group}.${module.name}" to Library(
-                    "${module.group}:${module.name}",
-                    VersionDefinition.Simple(module.version)
+            libraries = resolvedLibraries.map {
+                val module = it.key
+                module.tomlKey to Library(
+                    module.module,
+                    VersionDefinition.Simple(it.value)
                 )
-            },
-            plugins = resolvedPlugins.associate {
-                val module = it.module.id
-                module.group to Plugin(module.group, VersionDefinition.Simple(module.version))
-            },
+            }.toMap(),
+            plugins = resolvedPlugins.map {
+                val module = it.key
+                module.group to Plugin(module.group, VersionDefinition.Simple(it.value))
+            }.toMap(),
             bundles = emptyMap()
         )
 
         val unresolvedLibraryUpdates =
-            libraryConfiguration.resolvedConfiguration.lenientConfiguration.unresolvedModuleDependencies.mapNotNull { dependency ->
-                resolvedCatalog.libraries.values.firstOrNull { it.module == "${dependency.selector.module.group}:${dependency.selector.module.name}" }
+            unresolvedLibraries.mapNotNull { dependency ->
+                resolvedCatalog.libraries.values.firstOrNull { it.module == dependency.key.module }
             }
 
         val unresolvedPluginUpdates =
-            pluginConfiguration.resolvedConfiguration.lenientConfiguration.unresolvedModuleDependencies.mapNotNull { dependency ->
-                resolvedCatalog.plugins.values.firstOrNull { it.id == dependency.selector.group }
+            unresolvedPlugins.mapNotNull { dependency ->
+                resolvedCatalog.plugins.values.firstOrNull { it.id == dependency.key.group }
             }
 
         val exceededLibraryUpdates =
-            currentLibraryConfiguration.resolvedConfiguration.lenientConfiguration.unresolvedModuleDependencies.mapNotNull { dependency ->
-                catalog.libraries.values.firstOrNull { library -> library.module == "${dependency.selector.module.group}:${dependency.selector.module.name}" }
+            unresolvedCurrentLibraries.mapNotNull { dependency ->
+                catalog.libraries.values.firstOrNull { library -> library.module == dependency.key.module }
             }
 
         val exceededPluginUpdates =
-            currentPluginConfiguration.resolvedConfiguration.lenientConfiguration.unresolvedModuleDependencies.mapNotNull { dependency ->
-                catalog.plugins.values.firstOrNull { plugin -> plugin.id == dependency.selector.module.group }
+            unresolvedCurrentPlugins.mapNotNull { dependency ->
+                catalog.plugins.values.firstOrNull { plugin -> plugin.id == dependency.key.group }
             }
 
         val richVersionLibraryUpdates = resolvedLibraries.mapNotNull { dependency ->
             resolvedCatalog.libraries.values.firstOrNull {
-                it.module == "${dependency.module.id.group}:${dependency.module.id.name}"
+                it.module == dependency.key.module
             }?.let {
                 dependency to it
             }
@@ -183,15 +231,15 @@ internal class DependencyResolver {
                 is VersionDefinition.Simple -> version.version
                 else -> null
             }
-            library.version.richVersion && dependency.moduleVersion != version
+            library.version.richVersion && dependency.value != version
         }.associate {
             val (dependency, library) = it
-            library to Library(library.module, VersionDefinition.Simple(dependency.moduleVersion))
+            library to Library(library.module, VersionDefinition.Simple(dependency.value))
         }
 
         val richVersionPluginUpdates = resolvedPlugins.mapNotNull { dependency ->
             resolvedCatalog.plugins.values.firstOrNull {
-                it.id == dependency.module.id.group
+                it.id == dependency.key.group
             }?.let {
                 dependency to it
             }
@@ -201,10 +249,10 @@ internal class DependencyResolver {
                 is VersionDefinition.Simple -> version.version
                 else -> null
             }
-            plugin.version.richVersion && dependency.moduleVersion != version
+            plugin.version.richVersion && dependency.value != version
         }.associate {
             val (dependency, plugin) = it
-            plugin to Plugin(plugin.id, VersionDefinition.Simple(dependency.moduleVersion))
+            plugin to Plugin(plugin.id, VersionDefinition.Simple(dependency.value))
         }
 
         return DependencyResolverResult(
@@ -280,8 +328,24 @@ internal class DependencyResolver {
                 componentSelection(it)
             }
         }
-        configuration.resolutionStrategy.cacheDynamicVersionsFor(60, TimeUnit.SECONDS)
+        configuration.resolutionStrategy.cacheDynamicVersionsFor(60, TimeUnit.MINUTES)
     }
+}
+
+private data class Dependency(val group: String, val name: String) {
+    constructor(moduleIdentifier: ModuleIdentifier) : this(moduleIdentifier.group, moduleIdentifier.name)
+    constructor(moduleIdentifier: ModuleVersionIdentifier) : this(moduleIdentifier.group, moduleIdentifier.name)
+    constructor(dependency: ResolvedDependency) : this(dependency.module.id.group, dependency.module.id.name)
+    constructor(dependency: UnresolvedDependency) : this(dependency.selector.module.group, dependency.selector.module.name)
+
+    val module: String
+        get() = "$group:$name"
+
+    val tomlKey: String
+        get() = module.replace(".", "-")
+
+    val isPlugin: Boolean
+        get() = name.endsWith(".gradle.plugin")
 }
 
 private val VersionDefinition.richVersion: Boolean
