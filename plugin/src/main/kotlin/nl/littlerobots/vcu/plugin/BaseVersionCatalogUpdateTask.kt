@@ -37,9 +37,12 @@ import org.gradle.api.tasks.Optional
 import org.gradle.api.tasks.OutputFile
 import org.gradle.api.tasks.TaskAction
 import org.gradle.api.tasks.options.Option
+import org.gradle.util.GradleVersion
+import org.xml.sax.SAXException
 import java.io.File
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
+import javax.xml.parsers.SAXParserFactory
 
 abstract class BaseVersionCatalogUpdateTask : DefaultTask() {
     @get:OutputFile
@@ -95,6 +98,7 @@ abstract class BaseVersionCatalogUpdateTask : DefaultTask() {
 
     @TaskAction
     open fun updateCatalog() {
+        ensureSupportedSaxParser()
         checkInteractiveState()
 
         val currentCatalog = loadCurrentVersionCatalog()
@@ -448,6 +452,25 @@ abstract class BaseVersionCatalogUpdateTask : DefaultTask() {
                 it.copy(version = it.resolvedVersion(currentCatalog))
             }.toSet()
         )
+    }
+
+    private fun ensureSupportedSaxParser() {
+        if ((GradleVersion.current() >= GradleVersion.version("7.6.3") && GradleVersion.current() <= GradleVersion.version("8.0")) || GradleVersion.current() >= GradleVersion.version("8.4")) {
+            val factory = SAXParserFactory.newInstance()
+            try {
+                factory.newSAXParser().setProperty("http://javax.xml.XMLConstants/property/accessExternalSchema", "")
+            } catch (ex: SAXException) {
+                throw GradleException(
+                    """A plugin or custom build logic has included an old XML parser, which is not suitable for dependency resolution with this version of Gradle.
+                    |You can work around this issue by specifying the SAXParserFactory to use or by updating any plugin that depends on an old XML parser version.
+                    |
+                    |Use ./gradlew buildEnvironment to get a list of buildscript dependencies to check your build script dependencies.
+                    |
+                    |See https://docs.gradle.org/8.4/userguide/upgrading_version_8.html#changes_8.4 for more details and a workaround.
+                """.trimMargin()
+                )
+            }
+        }
     }
 }
 
