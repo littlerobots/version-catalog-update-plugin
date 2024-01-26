@@ -1,4 +1,9 @@
 # Changelog
+Version 0.8.4
+-------------
+* Fail the build when an incompatible XML parser is on the build classpath with Gradle 8.4+ and 7.6.3 ([#139](https://github.com/littlerobots/version-catalog-update-plugin/issues/139))
+* Add kts extension for version selector (new resolver only)
+
 Version 0.8.3
 -------------
 Fixes and enhancements for the internal resolver:
