@@ -34,13 +34,9 @@ class VersionSelectors {
                 return isStable(candidate.candidate.version)
             }
         }
-        val DEFAULT = object : ModuleVersionSelector {
+        val PREFER_STABLE = object : ModuleVersionSelector {
             override fun select(candidate: ModuleVersionCandidate): Boolean {
-                return (isStable(candidate.candidate.version) && isStable(candidate.currentVersion)) || (
-                    !isStable(
-                        candidate.candidate.version
-                    ) && !isStable(candidate.currentVersion)
-                    )
+                return (!isStable(candidate.candidate.version) && !isStable(candidate.currentVersion)) || isStable(candidate.candidate.version)
             }
         }
     }
