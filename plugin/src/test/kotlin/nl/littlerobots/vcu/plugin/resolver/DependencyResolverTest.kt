@@ -119,7 +119,7 @@ class DependencyResolverTest {
             project.buildscript.configurations.detachedConfiguration(),
             project.dependencies,
             catalog,
-            VersionSelectors.DEFAULT
+            VersionSelectors.PREFER_STABLE
         )
 
         assertTrue(result.versionCatalog.libraries.isEmpty())
@@ -150,7 +150,7 @@ class DependencyResolverTest {
             project.buildscript.configurations.detachedConfiguration(),
             project.dependencies,
             catalog,
-            VersionSelectors.DEFAULT
+            VersionSelectors.PREFER_STABLE
         )
 
         assertTrue(result.versionCatalog.libraries.isEmpty())
