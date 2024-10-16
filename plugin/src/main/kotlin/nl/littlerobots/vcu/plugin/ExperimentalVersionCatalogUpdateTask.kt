@@ -21,23 +21,21 @@ import nl.littlerobots.vcu.model.VersionCatalog
 import nl.littlerobots.vcu.model.VersionDefinition
 import nl.littlerobots.vcu.plugin.resolver.DependencyResolver
 import nl.littlerobots.vcu.plugin.resolver.DependencyResolverResult
-import nl.littlerobots.vcu.plugin.resolver.ModuleVersionCandidate
 import nl.littlerobots.vcu.plugin.resolver.ModuleVersionSelector
 import org.gradle.api.model.ObjectFactory
+import org.gradle.api.provider.Property
+import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.TaskAction
 import javax.inject.Inject
 
 abstract class ExperimentalVersionCatalogUpdateTask @Inject constructor(private val objectFactory: ObjectFactory) :
     BaseVersionCatalogUpdateTask() {
     private lateinit var result: DependencyResolverResult
-    private var versionSelector: ModuleVersionSelector = object : ModuleVersionSelector {
-        override fun select(candidate: ModuleVersionCandidate): Boolean {
-            return true
-        }
-    }
+    @get:Internal
+    internal abstract val versionSelector: Property<ModuleVersionSelector>
 
     fun versionSelector(filter: ModuleVersionSelector) {
-        this.versionSelector = filter
+        versionSelector.set(filter)
     }
 
     override fun onVersionCatalogUpdated(updatedCatalog: VersionCatalog, currentCatalog: VersionCatalog) {
@@ -188,7 +186,7 @@ abstract class ExperimentalVersionCatalogUpdateTask @Inject constructor(private 
             project.buildscript.configurations.detachedConfiguration(),
             project.dependencies,
             currentCatalog,
-            versionSelector
+            versionSelector.get()
         )
         this.result = result
         return result.versionCatalog
