@@ -125,7 +125,7 @@ internal class DependencyResolver {
                     currentPluginConfiguration.dependencies.add(dependencyHandler.create("${it.id}:${it.id}.gradle.plugin"))
                     currentPluginConfiguration.dependencyConstraints.add(
                         dependencyHandler.constraints.create(
-                            pluginConfiguration.name
+                            "${it.id}:${it.id}.gradle.plugin"
                         ) { constraint ->
                             configureConstraint(constraint, version)
                         }

@@ -197,6 +197,7 @@ abstract class ExperimentalVersionCatalogUpdateTask @Inject constructor(private 
         val keepConfiguration = objectFactory.newInstance(KeepConfiguration::class.java)
         keepConfiguration.keepUnusedLibraries.set(true)
         keepConfiguration.keepUnusedPlugins.set(true)
+        keepConfiguration.keepUnusedVersions.set(this.keep.orNull?.keepUnusedVersions?.getOrElse(false))
         val keepConfigurationInput = objectFactory.newInstance(KeepConfigurationInput::class.java, keepConfiguration)
         keep.set(keepConfigurationInput)
         super.updateCatalog()
