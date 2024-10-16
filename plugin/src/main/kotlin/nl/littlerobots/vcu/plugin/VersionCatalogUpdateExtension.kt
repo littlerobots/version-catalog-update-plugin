@@ -25,6 +25,7 @@ import org.gradle.api.Project
 import org.gradle.api.artifacts.MinimalExternalModuleDependency
 import org.gradle.api.artifacts.ModuleIdentifier
 import org.gradle.api.file.RegularFileProperty
+import org.gradle.api.model.ObjectFactory
 import org.gradle.api.provider.Property
 import org.gradle.api.provider.Provider
 import org.gradle.api.provider.SetProperty
@@ -34,7 +35,7 @@ import org.gradle.plugin.use.PluginDependency
 import java.io.Serializable
 import javax.inject.Inject
 
-abstract class VersionCatalogUpdateExtension {
+abstract class VersionCatalogUpdateExtension @Inject constructor(private val objectFactory: ObjectFactory) {
     @get:Optional
     abstract val sortByKey: Property<Boolean>
 
@@ -51,10 +52,10 @@ abstract class VersionCatalogUpdateExtension {
     abstract val versionCatalogs: NamedDomainObjectContainer<VersionCatalogConfig>
 
     @get:Optional
-    internal abstract var versionSelector: ModuleVersionSelector?
+    internal abstract val versionSelector: Property<ModuleVersionSelector>
 
     fun versionSelector(selector: ModuleVersionSelector) {
-        this.versionSelector = selector
+        versionSelector.set(selector)
     }
 
     fun pin(action: Action<PinConfiguration>) {
@@ -89,10 +90,10 @@ abstract class VersionCatalogConfig @Inject constructor(val name: String) {
     abstract val keep: KeepConfiguration
 
     @get:Optional
-    internal abstract var versionSelector: ModuleVersionSelector?
+    internal abstract val versionSelector: Property<ModuleVersionSelector>
 
     fun versionSelector(selector: ModuleVersionSelector) {
-        this.versionSelector = selector
+        versionSelector.set(selector)
     }
 }
 

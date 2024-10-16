@@ -147,8 +147,8 @@ class VersionCatalogUpdatePlugin : Plugin<Project> {
             task.catalogFile.set(versionCatalogConfig.catalogFile.asFile)
             task.notCompatibleWithConfigurationCache("Uses project")
             task.outputs.upToDateWhen { false }
-            val versionSelector = versionCatalogConfig.versionSelector ?: extension.versionSelector ?: VersionSelectors.PREFER_STABLE
-            task.versionSelector(versionSelector)
+            val versionSelector = versionCatalogConfig.versionSelector.orElse(extension.versionSelector).orElse(VersionSelectors.PREFER_STABLE)
+            task.versionSelector.set(versionSelector)
         }
     }
 
