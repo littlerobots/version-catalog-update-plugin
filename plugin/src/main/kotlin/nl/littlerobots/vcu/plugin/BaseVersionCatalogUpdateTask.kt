@@ -67,7 +67,7 @@ abstract class BaseVersionCatalogUpdateTask : DefaultTask() {
         get() = false
     @get:Internal
     protected open val keepUnusedEntriesByDefault
-        get() = true
+        get() = false
 
     private val pinRefs by lazy {
         pins.orNull?.getVersionCatalogRefs() ?: emptySet()
