@@ -20,14 +20,32 @@ pluginManagement {
     }
 }
 ```
-
 In your `build.gradle[.kts]`:
-```
+
+<details open>
+<summary>build.gradle</summary>
+
+```groovy
 plugins {
   id "com.github.ben-manes.versions" version "0.41.0"
   id "nl.littlerobots.version-catalog-update" version "<latest version>"
 }
 ```
+
+</details>
+
+<details>
+<summary>build.gradle.kts</summary>
+
+```kotlin
+plugins {
+  id("com.github.ben-manes.versions") version "0.41.0"
+  id("nl.littlerobots.version-catalog-update") version "<latest version>"
+}
+```
+
+</details>
+
 
 When using the plugins block, the classpath dependency is `nl.littlerobots.vcu:plugin:<version>`
 
