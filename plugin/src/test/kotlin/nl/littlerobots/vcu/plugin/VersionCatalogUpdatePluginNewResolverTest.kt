@@ -1273,4 +1273,137 @@ class VersionCatalogUpdatePluginNewResolverTest {
             tomlFile.readText()
         )
     }
+
+    @Test
+    fun `version selector is invoked`() {
+        val m2 = File(javaClass.getResource("/m2/m2.txt")!!.file).absoluteFile.parent
+
+        buildFile.writeText(
+            """
+            buildscript {
+                repositories {
+                    maven {
+                        url "$m2"
+                    }
+                }
+            }
+            plugins {
+                id "nl.littlerobots.version-catalog-update"
+            }
+
+            versionCatalogUpdate {
+                versionSelector {
+                    it.candidate.version == "1.3.0-alpha01"
+                }
+
+            }
+
+            repositories {
+                maven {
+                    url "$m2"
+                }
+            }
+
+            """.trimIndent()
+        )
+
+        val toml = """
+            [versions]
+            activity = "1.4.0"
+
+            [libraries]
+            test = { module = "androidx.activity:activity-compose", version.ref = "activity" }
+
+        """.trimIndent()
+
+        val tomlFile = File(tempDir.root, "gradle/libs.versions.toml")
+        File(tempDir.root, "gradle").mkdir()
+        tomlFile.writeText(toml)
+
+        GradleRunner.create()
+            .withProjectDir(tempDir.root)
+            .withArguments("versionCatalogUpdate", "-Pnl.littlerobots.vcu.resolver=true")
+            .withPluginClasspath()
+            .build()
+
+        // check that the fixed version is selected
+        assertEquals(
+            """
+                [versions]
+                activity = "1.3.0-alpha01"
+
+                [libraries]
+                test = { module = "androidx.activity:activity-compose", version.ref = "activity" }
+
+            """.trimIndent(),
+            tomlFile.readText()
+        )
+    }
+
+    @Test
+    fun `version selector is invoked for kts`() {
+        val m2 = File(javaClass.getResource("/m2/m2.txt")!!.file).absoluteFile.parent
+        buildFile.delete()
+        val ktsBuildFile = tempDir.newFile("build.gradle.kts")
+        ktsBuildFile.writeText(
+            """
+            import nl.littlerobots.vcu.plugin.versionSelector
+            buildscript {
+                repositories {
+                    maven {
+                        url = uri("$m2")
+                    }
+                }
+            }
+            plugins {
+                id("nl.littlerobots.version-catalog-update")
+            }
+
+            versionCatalogUpdate {
+              versionSelector {
+                it.candidate.version == "1.3.0-alpha01"
+              }
+            }
+
+            repositories {
+                maven {
+                   url = uri("$m2")
+                }
+            }
+
+            """.trimIndent()
+        )
+
+        val toml = """
+            [versions]
+            activity = "1.4.0"
+
+            [libraries]
+            test = { module = "androidx.activity:activity-compose", version.ref = "activity" }
+
+        """.trimIndent()
+
+        val tomlFile = File(tempDir.root, "gradle/libs.versions.toml")
+        File(tempDir.root, "gradle").mkdir()
+        tomlFile.writeText(toml)
+
+        GradleRunner.create()
+            .withProjectDir(tempDir.root)
+            .withArguments("versionCatalogUpdate", "-Pnl.littlerobots.vcu.resolver=true")
+            .withPluginClasspath()
+            .build()
+
+        // check that the fixed version is selected
+        assertEquals(
+            """
+                [versions]
+                activity = "1.3.0-alpha01"
+
+                [libraries]
+                test = { module = "androidx.activity:activity-compose", version.ref = "activity" }
+
+            """.trimIndent(),
+            tomlFile.readText()
+        )
+    }
 }
