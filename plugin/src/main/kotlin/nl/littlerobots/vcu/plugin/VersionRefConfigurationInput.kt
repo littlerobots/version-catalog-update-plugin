@@ -21,9 +21,8 @@ import org.gradle.api.provider.Property
 import java.io.Serializable
 import javax.inject.Inject
 
-// Holder for inputs because simply mapping VersionRefConfiguration does not work somehow
 @Suppress("LeakingThis")
-abstract class VersionRefConfigurationInput(versionRefConfiguration: VersionRefConfiguration) : Serializable {
+abstract class PinsConfigurationInput @Inject constructor(pinConfiguration: PinConfiguration) : Serializable {
 
     abstract val versions: ListProperty<String>
     abstract val libraries: ListProperty<ModuleIdentifier>
@@ -31,48 +30,37 @@ abstract class VersionRefConfigurationInput(versionRefConfiguration: VersionRefC
     abstract val groups: ListProperty<String>
 
     init {
-        versions.set(versionRefConfiguration.versions)
+        versions.set(pinConfiguration.versions)
         libraries.set(
-            versionRefConfiguration.libraries.map { libraries ->
+            pinConfiguration.libraries.map { libraries ->
                 libraries.map {
                     it.get().module
                 }
             }
         )
         plugins.set(
-            versionRefConfiguration.plugins.map { plugins ->
+            pinConfiguration.plugins.map { plugins ->
                 plugins.map {
                     it.get().pluginId
                 }
             }
         )
-        groups.set(versionRefConfiguration.groups)
+        groups.set(pinConfiguration.groups)
     }
 }
 
-abstract class PinsConfigurationInput @Inject constructor(versionRefConfiguration: VersionRefConfiguration) :
-    VersionRefConfigurationInput(versionRefConfiguration)
-
 @Suppress("LeakingThis")
-abstract class KeepConfigurationInput @Inject constructor(keepConfiguration: KeepConfiguration) : VersionRefConfigurationInput(keepConfiguration) {
-
+abstract class KeepConfigurationInput @Inject constructor(keepConfiguration: KeepConfiguration) {
+    abstract val versions: ListProperty<String>
     abstract val keepUnusedVersions: Property<Boolean>
-    abstract val keepUnusedLibraries: Property<Boolean>
-    abstract val keepUnusedPlugins: Property<Boolean>
 
     init {
         keepUnusedVersions.set(keepConfiguration.keepUnusedVersions)
-        keepUnusedLibraries.set(keepConfiguration.keepUnusedLibraries)
-        keepUnusedPlugins.set(keepConfiguration.keepUnusedPlugins)
+        versions.set(keepConfiguration.versions)
     }
 }
 
-internal val KeepConfigurationInput.keepingAnything: Boolean
-    get() = keepUnusedVersions.getOrElse(false) ||
-        keepUnusedLibraries.getOrElse(false) ||
-        keepUnusedPlugins.getOrElse(false)
-
-internal fun VersionRefConfigurationInput.getVersionCatalogRefs(): Set<VersionCatalogRef> {
+internal fun PinsConfigurationInput.getVersionCatalogRefs(): Set<VersionCatalogRef> {
     return (
         versions.convention(emptySet()).get()
             .map { VersionRef(it) } +
@@ -88,5 +76,12 @@ internal fun VersionRefConfigurationInput.getVersionCatalogRefs(): Set<VersionCa
                 .map {
                     GroupRef(it)
                 }
+        ).toSet()
+}
+
+internal fun KeepConfigurationInput.getVersionCatalogRefs(): Set<VersionCatalogRef> {
+    return (
+        versions.convention(emptySet()).get()
+            .map { VersionRef(it) }
         ).toSet()
 }

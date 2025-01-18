@@ -43,7 +43,7 @@ class VersionCatalogTest {
             emptyMap()
         )
 
-        val result = catalog.updateFrom(updatedCatalog, addNew = true)
+        val result = catalog.updateFrom(updatedCatalog)
 
         assertEquals(1, result.libraries.size)
         assertNotNull(result.libraries["generated-library-reference"])
@@ -80,7 +80,7 @@ class VersionCatalogTest {
             emptyMap()
         )
 
-        val result = catalog.updateFrom(updatedCatalog, addNew = true)
+        val result = catalog.updateFrom(updatedCatalog)
 
         assertEquals(2, result.libraries.size)
         assertNotNull(result.libraries["generated-library-reference"])
@@ -131,7 +131,7 @@ class VersionCatalogTest {
             emptyMap()
         )
 
-        val result = catalog.updateFrom(updatedCatalog, addNew = true)
+        val result = catalog.updateFrom(updatedCatalog)
 
         assertEquals(3, result.libraries.size)
         assertNotNull(result.libraries["generated-library-reference"])
@@ -410,14 +410,14 @@ class VersionCatalogTest {
             """.trimIndent().byteInputStream()
         )
 
-        val result = catalog.updateFrom(updatedCatalog, addNew = true)
+        val result = catalog.updateFrom(updatedCatalog)
 
         assertEquals(4, result.libraries.size)
         assertEquals(catalog.libraries.keys.toList(), result.libraries.keys.toList().dropLast(1))
     }
 
     @Test
-    fun `removes unused libraries`() {
+    fun `keeps unused libraries`() {
         val catalog = VersionCatalog(
             emptyMap(),
             mapOf(
@@ -445,14 +445,14 @@ class VersionCatalogTest {
             emptyMap()
         )
 
-        val result = catalog.updateFrom(updatedCatalog, purge = true)
+        val result = catalog.updateFrom(updatedCatalog, pruneVersions = true)
 
-        assertEquals(1, result.libraries.size)
+        assertEquals(2, result.libraries.size)
         assertNotNull(result.libraries["my-library"])
     }
 
     @Test
-    fun `removes unused plugin ids`() {
+    fun `keeps unused plugin ids`() {
         val catalog = VersionCatalogParser().parse(
             """
             [plugins]
@@ -470,8 +470,8 @@ class VersionCatalogTest {
 
         val result = catalog.updateFrom(update)
 
-        assertEquals(1, result.plugins.size)
-        assertNull(result.plugins["myplugin2"])
+        assertEquals(2, result.plugins.size)
+        assertNotNull(result.plugins["myplugin2"])
         assertEquals(
             Plugin(id = "some.plugin.id", version = VersionDefinition.Simple("1.5")),
             result.plugins["myplugin"]
@@ -668,7 +668,7 @@ class VersionCatalogTest {
             plugins = emptyMap()
         )
 
-        val result = catalog.updateFrom(catalog, purge = false)
+        val result = catalog.updateFrom(catalog, pruneVersions = false)
 
         assertEquals(catalog.versions, result.versions)
     }
@@ -682,7 +682,7 @@ class VersionCatalogTest {
             plugins = emptyMap()
         )
 
-        val result = catalog.updateFrom(catalog, purge = true)
+        val result = catalog.updateFrom(catalog, pruneVersions = true)
 
         assertEquals(emptyMap<String, String>(), result.versions)
     }

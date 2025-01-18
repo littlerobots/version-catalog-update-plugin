@@ -57,13 +57,11 @@ data class Comments(
  * Create an updated [VersionCatalog] by combining with [catalog]
  *
  * @param catalog the catalog to use for updating
- * @param addNew whether to add new entries to the catalog, defaults to false
- * @param purge whether to remove unused entries from the catalog, defaults to true
+ * @param pruneVersions whether to remove unused versions from the catalog, defaults to true
  */
 fun VersionCatalog.updateFrom(
     catalog: VersionCatalog,
-    addNew: Boolean = false,
-    purge: Boolean = true
+    pruneVersions: Boolean = true
 ): VersionCatalog {
     // Note that in theory there could be multiple mappings for the same module, those are collapsed here
     val libraryKeys = this.libraries.map { it.value.module to it.key }.toMap()
@@ -84,18 +82,11 @@ fun VersionCatalog.updateFrom(
                     it to entry.value
                 }
             }
-        } ?: if (addNew) (entry.key to entry.value) else null
+        } ?: (entry.key to entry.value)
     }.toMap()
 
     val libraries = this.libraries.toMutableMap().apply {
         putAll(updatedLibraries)
-        if (purge) {
-            val modules = catalog.libraries.map { it.value.module }.toSet()
-            val purgeKeys = libraryKeys.toMutableMap().apply {
-                keys.removeAll(modules)
-            }
-            keys.removeAll(purgeKeys.values.toSet())
-        }
     }
 
     val pluginKeys = this.plugins.map {
@@ -111,14 +102,11 @@ fun VersionCatalog.updateFrom(
                 is VersionDefinition.Condition -> it to currentPlugin
                 else -> it to entry.value
             }
-        } ?: if (addNew) entry.key to entry.value else null
+        } ?: (entry.key to entry.value)
     }.toMap()
 
     val plugins = this.plugins.toMutableMap().apply {
         putAll(pluginUpdates)
-        if (purge) {
-            keys.retainAll(pluginUpdates.keys)
-        }
     }
 
     val versions = this.versions.toMutableMap()
@@ -127,7 +115,7 @@ fun VersionCatalog.updateFrom(
 
     // collect this.libraries references that point to a single group
     // check libraries for possible groupings (= same group + same version)
-    // reuse if reference exist or create if group size > 1
+    // reuse if a reference exist or create if group size > 1
     // collect all version refs that point to a single group with all the libs using the same version
     collectVersionReferenceForGroups(libraries, versions)
 
@@ -137,7 +125,7 @@ fun VersionCatalog.updateFrom(
         plugins = plugins
     ).updateBundles()
 
-    return if (purge) result.pruneVersions() else result
+    return if (pruneVersions) result.pruneVersions() else result
 }
 
 private fun VersionCatalog.retainCurrentVersionReferences(
