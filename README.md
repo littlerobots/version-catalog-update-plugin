@@ -3,12 +3,9 @@
 [![Maven Central](https://img.shields.io/maven-central/v/nl.littlerobots.vcu/plugin)](https://search.maven.org/search?q=g:nl.littlerobots.vcu%20a:plugin)
 
 This plugin helps to keep the versions in a Gradle [version catalog toml file](https://docs.gradle.org/current/userguide/platforms.html) up to date.
-The version updates are determined by the [versions plugin](https://github.com/ben-manes/gradle-versions-plugin).
 
 # Getting started
 This plugin requires Gradle 7.2 or up. [Version catalogs](https://docs.gradle.org/current/userguide/platforms.html) are a Gradle incubating feature for versions lower than 7.4, check out the documentation on how to enable this feature for those versions.
-
-The [versions plugin](https://github.com/ben-manes/gradle-versions-plugin) needs to be applied in the root `build.gradle` or `build.gradle.kts` build file.
 
 The version catalog plugin is hosted on the [Gradle Plugin portal](https://plugins.gradle.org/plugin/nl.littlerobots.version-catalog-update) and Maven Central. [Snapshots](#snapshot-versions) are only published to Maven Central. To use Maven Central, be sure to include
 it in your plugin repositories, for example in `settings.gradle`:
@@ -27,7 +24,6 @@ In your `build.gradle[.kts]`:
 
 ```groovy
 plugins {
-  id "com.github.ben-manes.versions" version "0.41.0"
   id "nl.littlerobots.version-catalog-update" version "<latest version>"
 }
 ```
@@ -39,37 +35,64 @@ plugins {
 
 ```kotlin
 plugins {
-  id("com.github.ben-manes.versions") version "0.41.0"
   id("nl.littlerobots.version-catalog-update") version "<latest version>"
 }
 ```
 
 </details>
 
-
 When using the plugins block, the classpath dependency is `nl.littlerobots.vcu:plugin:<version>`
 
-## Creating a `libs.versions.toml` file
+## Upgrading
+Earlier versions of this plugin used the  [versions plugin](https://github.com/ben-manes/gradle-versions-plugin) to resolve
+dependencies. This plugin is no longer required and version selection is configured using the `versionSelector` option.
 
-If you don't have a catalog file yet, one can be created by using the `--create` command line option:
+# Selecting dependency versions
+By default, a stable version will be selected, based on the version name, unless the current version is already considered unstable and a newer version exists. A version is considered stable if it isn't a snapshot or alpha version.
+See the [VersionSelectors](https://github.com/littlerobots/version-catalog-update-plugin/blob/main/plugin/src/main/kotlin/nl/littlerobots/vcu/plugin/resolver/VersionSelectors.kt#L20) class for the exact definition.
 
+The selection can be customized by configuring a version selector:
+
+<details open>
+<summary>build.gradle</summary>
+
+```groovy
+versionCatalogUpdate {
+    versionSelector {
+        // here 'it' is a ModuleVersionCandidate that can be used to determine if the version
+        // is allowed, returning true if it is.
+        !(it.candidate.version.contains('SNAPSHOT') || it.candidate.version.contains('ALPHA'))
+    }
+}
 ```
-./gradlew versionCatalogUpdate --create
+
+</details>
+
+<details>
+<summary>build.gradle.kts</summary>
+
+```kotlin
+import nl.littlerobots.vcu.plugin.versionSelector
+
+versionCatalogUpdate {
+    versionSelector {
+        // here 'it' is a ModuleVersionCandidate that can be used to determine if the version
+        // is allowed, returning true if it is.
+        !(it.candidate.version.contains("SNAPSHOT") || it.candidate.version.contains("ALPHA"))
+    }
+}
 ```
+</details>
 
-This will use the current versions used as detected the versions plugin. After running the build with `--create` `gradle/libs.versions.toml` can be edited needed.
-You can rename and remove keys that are not applicable; the versions plugin may include dependencies that are internal to Gradle or added by other means, such as plugins adding a dependency.
+Or use one of the predefined selectors:
 
-The plugin will attempt to create versions for artifacts in the same group with a common version.
+```kotlin
+import nl.littlerobots.vcu.plugin.resolver.VersionSelectors
 
-The catalog will be updated with the latest available version as determined by the versions plugin.
-__[You should probably configure the versions plugin on what versions are acceptable](https://github.com/ben-manes/gradle-versions-plugin#rejectversionsif-and-componentselection)__
-A common case is to reject unstable versions like alphas, [please refer to these examples](https://github.com/ben-manes/gradle-versions-plugin#rejectversionsif-and-componentselection).
-
-When you configure the dependency versions plugin, make sure that you don't disable the JSON report, as this report
-is used as an input to this plugin. Disabling the json report will result in errors or stale updates.
-
-After you have created the `libs.versions.toml` file you can update your dependency references to use the catalog instead of direct dependency declarations.
+// LATEST to accept any latest version, STABLE to select only stable versions or
+// PREFER_STABLE (default setting) to accept unstable versions only if the catalog already uses an unstable version
+versionSelector(VersionSelectors.STABLE)
+```
 
 ## Updating the `libs.versions.toml` file
 To update the catalog file at any time run `./gradlew versionCatalogUpdate`. This takes care of the following:
@@ -78,8 +101,7 @@ To update the catalog file at any time run `./gradlew versionCatalogUpdate`. Thi
 * Keys used in `versions`, `libraries`, `bundles` and `plugins` will be sorted by name [configurable](#configuration)
 * `bundles` will be updated so that they only contain valid keys. Keys in a bundle will be sorted.
 
-No new entries will be added to the catalog, but unused entries will be removed. Any dependency that is not reported by the versions plugin, but still appears
-in the version catalog file will be considered unused. This is [configurable](#configuration).
+Versions that are not used and not marked to be kept will be removed when the catalog is updated. This is [configurable](#configuration).
 
 ### Interactive mode
 Updating all dependencies at once is without testing is generally not recommended. When using a version control system, changes to the version catalog can be rolled back
@@ -125,32 +147,27 @@ dokka = "org.jetbrains.dokka:1.7.10"
 </details>
 
 ### Formatting only
+Running the `versionCatalogUpdate` task will also format the catalog. For formatting libraries and plugins, the plugin will use
+the "short" syntax if possible (`com.group:module:version` for libraries). If a `version.ref` is applied, it will be kept.
+By default, entries in the version catalog will be sorted alphabetically. Note that during formatting some whitespace might
+be lost due to parsing the toml file and rewriting it.
+
 To format the existing `libs.versions.toml` file without updating library versions, you can run `./gradlew versionCatalogFormat`.
-This will format the version catalog and create new version references, just like the `versionCatalogUpdate` task would do.
 This comes in handy when you added an entry to the version catalog, but aren't ready yet to update any dependencies.
 
 ## Informational output
 In some cases the plugin will output some additional messages when checking for updates.
 
-### "Exceeded" dependencies
-The versions plugin will report "exceeded" dependencies, which are dependencies that don't match the declared version for some reason. This can happen when you specify a version that does not exist, but some other dependency is pulling in an existing version of the same dependency.
+### Dependencies with invalid versions
+The versions plugin will report dependencies with invalid versions, which are dependencies that don't match the declared version for some reason. This can happen when you specify a version that does not exist, but some other dependency is pulling in an existing version of the same dependency.
 In that case, your build will not fail, but the version used isn't the version that was specified in the catalog file. The plugin will show a warning and update the catalog to the correct version in that case.
 
 <details>
 <summary>example warning</summary>
 
 ```
-Some libraries declared in the version catalog did not match the resolved version used this project.
-This mismatch can occur when a version is declared that does not exist, or when a dependency is referenced by a transitive dependency that requires a different version.
-The version in the version catalog has been updated to the actual version. If this is not what you want, consider using a strict version definition.
-
-
-The affected libraries are:
- - androidx.test:core (libs.androidx.test.core)
-     requested: 1.4.1 (androidxTest), resolved: 1.4.0
- - androidx.test:rules (libs.androidx.test.rules)
-     requested: 1.4.1 (androidxTest), resolved: 1.4.0
-
+There are libraries with invalid versions that could be updated:
+ - androidx.activity:activity-compose (androidx-activity-activity-compose) -> 1.9.2
 ```
 </details>
 
@@ -206,16 +223,14 @@ versionCatalogUpdate {
         // note that for versions it will ONLY keep the specified version, not all
         // entries that reference it.
         versions = ["my-version-name", "other-version"]
-        libraries = [libs.my.library.reference, libs.my.other.library.reference]
-        plugins = [libs.plugins.my.plugin, libs.plugins.my.other.plugin]
-        groups = ["com.somegroup", "com.someothergroup"]
-
         // keep versions without any library or plugin reference
         keepUnusedVersions = true
-        // keep all libraries that aren't used in the project
-        keepUnusedLibraries = true
-        // keep all plugins that aren't used in the project
-        keepUnusedPlugins = true
+    }
+
+    // Return true in the version selector function to accept the updated version
+    // For more details refer to the chapter earlier in this README
+    versionSelector {
+        ///
     }
 }
 ```
@@ -248,19 +263,14 @@ versionCatalogUpdate {
         // keep has the same options as pin to keep specific entries
         versions.add("my-version-name")
         versions.add("other-version")
-        libraries.add(libs.my.library.reference)
-        libraries.add(libs.my.other.library.reference)
-        plugins.add(libs.plugins.my.plugin)
-        plugins.add(libs.plugins.my.other.plugin)
-        groups.add("com.somegroup")
-        groups.add("com.someothergroup")
-
         // keep versions without any library or plugin reference
         keepUnusedVersions.set(true)
-        // keep all libraries that aren't used in the project
-        keepUnusedLibraries.set(true)
-        // keep all plugins that aren't used in the project
-        keepUnusedPlugins.set(true)
+    }
+
+    // Return true in the version selector function to accept the updated version
+    // For more details refer to the chapter earlier in this README
+    versionSelector {
+        ///
     }
 }
 ```
@@ -316,6 +326,7 @@ versionCatalogUpdate {
             keep {
                 keepUnusedVersions = true
             }
+            versionSelector(VersionSelectors.LATEST)
         }
     }
 }
@@ -348,6 +359,7 @@ versionCatalogUpdate {
             keep {
                 keepUnusedVersions.set(true)
             }
+            versionSelector(VersionSelectors.LATEST)
         }
     }
 }
@@ -387,5 +399,4 @@ versionCatalogUpdate {
 For snapshots versions add the Sonatype snapshot repository `https://oss.sonatype.org/content/repositories/snapshots/`.
 
 ## Known issues and limitations
-* When creating the catalog from existing dependencies, "internal" dependencies or plugins might be added to the catalog.
 * The TOML file will be updated and formatted by this plugin; this is by design. If this is undesirable then the  [versions plugin](https://github.com/ben-manes/gradle-versions-plugin) is probably what you are looking for.

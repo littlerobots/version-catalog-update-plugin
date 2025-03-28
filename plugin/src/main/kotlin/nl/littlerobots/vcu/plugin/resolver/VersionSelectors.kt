@@ -24,16 +24,26 @@ class VersionSelectors {
             return isStable
         }
 
+        /**
+         * Select the latest version
+         */
         val LATEST = object : ModuleVersionSelector {
             override fun select(candidate: ModuleVersionCandidate): Boolean {
                 return true
             }
         }
+        /**
+         * Select only stable versions
+         */
         val STABLE = object : ModuleVersionSelector {
             override fun select(candidate: ModuleVersionCandidate): Boolean {
                 return isStable(candidate.candidate.version)
             }
         }
+
+        /**
+         * Select an unstable version if the current version is also unstable, otherwise select a stable version.
+         */
         val PREFER_STABLE = object : ModuleVersionSelector {
             override fun select(candidate: ModuleVersionCandidate): Boolean {
                 return (!isStable(candidate.candidate.version) && !isStable(candidate.currentVersion)) || isStable(candidate.candidate.version)

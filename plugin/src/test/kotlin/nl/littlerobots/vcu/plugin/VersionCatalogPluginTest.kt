@@ -36,16 +36,10 @@ class VersionCatalogPluginTest {
 
     @Test
     fun `versionCatalogs block creates task for each catalog`() {
-        val reportJson = tempDir.newFile()
-
         buildFile.writeText(
             """
             plugins {
                 id "nl.littlerobots.version-catalog-update"
-            }
-
-            tasks.named("versionCatalogUpdate").configure {
-                it.reportJson = file("${reportJson.name}")
             }
 
             versionCatalogUpdate {
@@ -55,13 +49,7 @@ class VersionCatalogPluginTest {
                     }
                 }
             }
-            // Workaround for classpath issues with applying the dependency versions plugin in tests
-            // With report path set, the dependency is not required
-            tasks.named("versionCatalogUpdateLibs2").configure {
-                it.reportJson = file("${reportJson.name}")
-            }
             """.trimIndent()
-
         )
 
         val result = GradleRunner.create()
@@ -80,16 +68,10 @@ class VersionCatalogPluginTest {
 
     @Test
     fun `default version catalog file can be changed`() {
-        val reportJson = tempDir.newFile()
-
         buildFile.writeText(
             """
             plugins {
                 id "nl.littlerobots.version-catalog-update"
-            }
-
-            tasks.named("versionCatalogUpdate").configure {
-                it.reportJson = file("${reportJson.name}")
             }
 
             versionCatalogUpdate {

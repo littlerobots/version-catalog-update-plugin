@@ -71,7 +71,7 @@ abstract class VersionCatalogUpdateExtension @Inject constructor(private val obj
     }
 }
 
-abstract class VersionRefConfiguration : Serializable {
+abstract class PinConfiguration : Serializable {
     abstract val versions: SetProperty<String>
     abstract val libraries: SetProperty<Provider<MinimalExternalModuleDependency>>
     abstract val plugins: SetProperty<Provider<PluginDependency>>
@@ -97,11 +97,9 @@ abstract class VersionCatalogConfig @Inject constructor(val name: String) {
     }
 }
 
-abstract class PinConfiguration : VersionRefConfiguration()
-abstract class KeepConfiguration : VersionRefConfiguration() {
+abstract class KeepConfiguration {
+    abstract val versions: SetProperty<String>
     abstract val keepUnusedVersions: Property<Boolean>
-    abstract val keepUnusedLibraries: Property<Boolean>
-    abstract val keepUnusedPlugins: Property<Boolean>
 }
 
 internal sealed class VersionCatalogRef

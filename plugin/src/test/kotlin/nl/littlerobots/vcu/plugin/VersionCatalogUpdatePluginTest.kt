@@ -15,12 +15,9 @@
 */
 package nl.littlerobots.vcu.plugin
 
-import org.gradle.api.Project
-import org.gradle.testfixtures.ProjectBuilder
 import org.gradle.testkit.runner.GradleRunner
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
@@ -39,297 +36,8 @@ class VersionCatalogUpdatePluginTest {
     }
 
     @Test
-    fun `plugin requires versions plugin`() {
-        buildFile.writeText(
-            """
-            plugins {
-                id "nl.littlerobots.version-catalog-update"
-            }
-            """.trimIndent()
-        )
-
-        val runner = GradleRunner.create()
-            .withProjectDir(tempDir.root)
-            .withArguments("versionCatalogUpdate")
-            .withPluginClasspath()
-            .buildAndFail()
-
-        assertTrue(runner.output.contains("com.github.ben-manes.versions needs to be applied as a plugin"))
-    }
-
-    @Test
-    fun `plugin does not require versions plugin if upgrade task is disabled`() {
-        buildFile.writeText(
-            """
-            plugins {
-                id "nl.littlerobots.version-catalog-update"
-            }
-
-            tasks.named("versionCatalogUpdate").configure {
-                it.enabled = false
-            }
-            """.trimIndent()
-        )
-
-        GradleRunner.create()
-            .withProjectDir(tempDir.root)
-            .withArguments("versionCatalogUpdate")
-            .withPluginClasspath()
-            .build()
-    }
-
-    @Test
-    fun `plugins with plugin block syntax in subprojects are detected`() {
-        val reportJson = tempDir.newFile()
-
-        buildFile.writeText(
-            """
-            plugins {
-                id "nl.littlerobots.version-catalog-update"
-            }
-
-            tasks.named("versionCatalogUpdate").configure {
-                it.reportJson = file("${reportJson.name}")
-            }
-            """.trimIndent()
-        )
-        val moduleDir = File(tempDir.root, "module1")
-        moduleDir.mkdir()
-        val moduleBuildFile = File(moduleDir, "build.gradle")
-        moduleBuildFile.writeText(
-            """
-            plugins {
-                id "com.github.ben-manes.versions" version "0.39.0"
-            }
-            """.trimIndent()
-        )
-        val settingsFile = File(tempDir.root, "settings.gradle")
-        settingsFile.writeText(
-            """
-            include(":module1")
-            """.trimIndent()
-        )
-
-        // this is the plugin marker artifact that allows Gradle to resolve a plugin id
-        reportJson.writeText(
-            """
-            {
-              "current": {
-                "dependencies": [
-                  {
-                    "group": "com.github.ben-manes.versions",
-                    "version": "0.39.0",
-                    "name": "com.github.ben-manes.versions.gradle.plugin"
-                  }
-                ]
-              }
-            }
-            """.trimIndent()
-        )
-
-        GradleRunner.create()
-            .withProjectDir(tempDir.root)
-            .withArguments("versionCatalogUpdate", "--create")
-            .withPluginClasspath()
-            .build()
-
-        val libs = File(tempDir.root, "gradle/libs.versions.toml").readText()
-
-        assertEquals(
-            """
-            [plugins]
-            com-github-ben-manes-versions = "com.github.ben-manes.versions:0.39.0"
-
-            """.trimIndent(),
-            libs
-        )
-    }
-
-    @Test
-    fun `plugins with plugin block syntax mapped through a resolutionStrategy subprojects are detected`() {
-        val reportJson = tempDir.newFile()
-
-        buildFile.writeText(
-            """
-            plugins {
-                id "nl.littlerobots.version-catalog-update"
-            }
-
-            tasks.named("versionCatalogUpdate").configure {
-                it.reportJson = file("${reportJson.name}")
-            }
-            """.trimIndent()
-        )
-        val moduleDir = File(tempDir.root, "module1")
-        moduleDir.mkdir()
-        val moduleBuildFile = File(moduleDir, "build.gradle")
-        moduleBuildFile.writeText(
-            """
-            plugins {
-                id "com.github.ben-manes.versions" version "0.39.0"
-            }
-            """.trimIndent()
-        )
-        val settingsFile = File(tempDir.root, "settings.gradle")
-        settingsFile.writeText(
-            """
-            include(":module1")
-            """.trimIndent()
-        )
-
-        // this artifact would normally not be reported, unless it's mapped in settings.gradle,
-        // so this fakes the plugin being resolved through an resolutionStrategy
-        reportJson.writeText(
-            """
-            {
-              "current": {
-                "dependencies": [
-                  {
-                    "group": "com.github.ben-manes",
-                    "version": "0.39.0",
-                    "name": "gradle-versions-plugin"
-                  }
-                ]
-              }
-            }
-            """.trimIndent()
-        )
-
-        GradleRunner.create()
-            .withProjectDir(tempDir.root)
-            .withArguments("versionCatalogUpdate", "--create")
-            .withPluginClasspath()
-            .withDebug(true)
-            .build()
-
-        val libs = File(tempDir.root, "gradle/libs.versions.toml").readText()
-        // "create" will add both a library and a plugin because all plugin dependencies are considered in one go
-        // and this could therefore be a normal "apply" in a subproject or a plugin declaration
-        assertEquals(
-            """
-            [libraries]
-            com-github-ben-manes-gradle-versions-plugin = "com.github.ben-manes:gradle-versions-plugin:0.39.0"
-
-            [plugins]
-            com-github-ben-manes-versions = "com.github.ben-manes.versions:0.39.0"
-
-            """.trimIndent(),
-            libs
-        )
-    }
-
-    @Test
-    fun `plugin with report path does not require versions plugin`() {
-        val reportJson = tempDir.newFile()
-
-        buildFile.writeText(
-            """
-            plugins {
-                id "nl.littlerobots.version-catalog-update"
-            }
-
-            tasks.named("versionCatalogUpdate").configure {
-                it.reportJson = file("${reportJson.name}")
-            }
-            """.trimIndent()
-        )
-
-        // empty report
-        reportJson.writeText("{}")
-
-        GradleRunner.create()
-            .withProjectDir(tempDir.root)
-            .withArguments("versionCatalogUpdate", "--create")
-            .withPluginClasspath()
-            .build()
-    }
-
-    @Test
-    fun `create uses current versions`() {
-        val reportJson = tempDir.newFile()
-
-        buildFile.writeText(
-            """
-            plugins {
-                id "nl.littlerobots.version-catalog-update"
-            }
-
-            tasks.named("versionCatalogUpdate").configure {
-                it.reportJson = file("${reportJson.name}")
-            }
-            """.trimIndent()
-        )
-
-        reportJson.writeText(
-            """
-            {
-                "current": {
-                    "dependencies": [
-                        {
-                            "group": "androidx.activity",
-                            "userReason": null,
-                            "version": "1.4.0",
-                            "projectUrl": "https://developer.android.com/jetpack/androidx/releases/activity#1.4.0",
-                            "name": "activity-compose"
-                        }
-                   ]
-                },
-                "exceeded": {
-                    "dependencies": [
-                        {
-                            "group": "androidx.compose.ui",
-                            "latest": "1.1.0-rc01",
-                            "userReason": null,
-                            "version": "1.1.0-rc02",
-                            "projectUrl": "https://developer.android.com/jetpack/androidx/releases/compose-ui#1.1.0-rc01",
-                            "name": "ui-test-junit4"
-                        }
-                    ]
-                },
-                "outdated": {
-                    "dependencies": [
-                        {
-                            "group": "io.coil-kt",
-                            "available": {
-                                "release": null,
-                                "milestone": "2.0.0-alpha06",
-                                "integration": null
-                            },
-                            "userReason": null,
-                            "version": "2.0.0-alpha05",
-                            "projectUrl": "https://github.com/coil-kt/coil",
-                            "name": "coil-compose"
-                        }
-                    ]
-                }
-            }
-            """.trimIndent()
-        )
-
-        GradleRunner.create()
-            .withProjectDir(tempDir.root)
-            .withArguments("versionCatalogUpdate", "--create")
-            .withPluginClasspath()
-            .build()
-
-        val libs = File(tempDir.root, "gradle/libs.versions.toml").readText()
-        // "create" will add both a library and a plugin because all plugin dependencies are considered in one go
-        // and this could therefore be a normal "apply" in a subproject or a plugin declaration
-        assertEquals(
-            """
-                [libraries]
-                androidx-activity-activity-compose = "androidx.activity:activity-compose:1.4.0"
-                androidx-compose-ui-ui-test-junit4 = "androidx.compose.ui:ui-test-junit4:1.1.0-rc02"
-                io-coil-kt-coil-compose = "io.coil-kt:coil-compose:2.0.0-alpha05"
-
-            """.trimIndent(),
-            libs
-        )
-    }
-
-    @Test
     fun `normal invocation updates versions`() {
-        val reportJson = tempDir.newFile()
+        val m2 = File(javaClass.getResource("/m2/m2.txt")!!.file).absoluteFile.parent
 
         buildFile.writeText(
             """
@@ -337,64 +45,18 @@ class VersionCatalogUpdatePluginTest {
                 id "nl.littlerobots.version-catalog-update"
             }
 
-            tasks.named("versionCatalogUpdate").configure {
-                it.reportJson = file("${reportJson.name}")
-            }
-            """.trimIndent()
-        )
-
-        // empty report
-        reportJson.writeText(
-            """
-            {
-                "current": {
-                    "dependencies": [
-                        {
-                            "group": "androidx.activity",
-                            "userReason": null,
-                            "version": "1.4.0",
-                            "projectUrl": "https://developer.android.com/jetpack/androidx/releases/activity#1.4.0",
-                            "name": "activity-compose"
-                        }
-                   ]
-                },
-                "exceeded": {
-                    "dependencies": [
-                        {
-                            "group": "androidx.compose.ui",
-                            "latest": "1.1.0-rc01",
-                            "userReason": null,
-                            "version": "1.1.0-rc02",
-                            "projectUrl": "https://developer.android.com/jetpack/androidx/releases/compose-ui#1.1.0-rc01",
-                            "name": "ui-test-junit4"
-                        }
-                    ]
-                },
-                "outdated": {
-                    "dependencies": [
-                        {
-                            "group": "io.coil-kt",
-                            "available": {
-                                "release": null,
-                                "milestone": "2.0.0-alpha06",
-                                "integration": null
-                            },
-                            "userReason": null,
-                            "version": "2.0.0-alpha05",
-                            "projectUrl": "https://github.com/coil-kt/coil",
-                            "name": "coil-compose"
-                        }
-                    ]
+            repositories {
+                maven {
+                    url "$m2"
                 }
             }
+
             """.trimIndent()
         )
 
         val toml = """
                 [libraries]
                 androidx-activity-activity-compose = "androidx.activity:activity-compose:1.4.0"
-                androidx-compose-ui-ui-test-junit4 = "androidx.compose.ui:ui-test-junit4:1.1.0-rc02"
-                io-coil-kt-coil-compose = "io.coil-kt:coil-compose:2.0.0-alpha05"
 
         """.trimIndent()
 
@@ -403,8 +65,9 @@ class VersionCatalogUpdatePluginTest {
 
         GradleRunner.create()
             .withProjectDir(tempDir.root)
-            .withArguments("versionCatalogUpdate")
+            .withArguments("versionCatalogUpdate", "-Pnl.littlerobots.vcu.resolver=true")
             .withPluginClasspath()
+            .withDebug(true)
             .build()
 
         val libs = File(tempDir.root, "gradle/libs.versions.toml").readText()
@@ -412,9 +75,7 @@ class VersionCatalogUpdatePluginTest {
         assertEquals(
             """
                 [libraries]
-                androidx-activity-activity-compose = "androidx.activity:activity-compose:1.4.0"
-                androidx-compose-ui-ui-test-junit4 = "androidx.compose.ui:ui-test-junit4:1.1.0-rc01"
-                io-coil-kt-coil-compose = "io.coil-kt:coil-compose:2.0.0-alpha06"
+                androidx-activity-activity-compose = "androidx.activity:activity-compose:1.9.2"
 
             """.trimIndent(),
             libs
@@ -423,7 +84,7 @@ class VersionCatalogUpdatePluginTest {
 
     @Test
     fun `exceeded dependencies emit warning`() {
-        val reportJson = tempDir.newFile()
+        val m2 = File(javaClass.getResource("/m2/m2.txt")!!.file).absoluteFile.parent
 
         buildFile.writeText(
             """
@@ -431,34 +92,18 @@ class VersionCatalogUpdatePluginTest {
                 id "nl.littlerobots.version-catalog-update"
             }
 
-            tasks.named("versionCatalogUpdate").configure {
-                it.reportJson = file("${reportJson.name}")
-            }
-            """.trimIndent()
-        )
-
-        reportJson.writeText(
-            """
-            {
-                "exceeded": {
-                    "dependencies": [
-                        {
-                            "group": "androidx.compose.ui",
-                            "latest": "1.1.0-rc01",
-                            "userReason": null,
-                            "version": "1.1.0-rc02",
-                            "projectUrl": "https://developer.android.com/jetpack/androidx/releases/compose-ui#1.1.0-rc01",
-                            "name": "ui-test-junit4"
-                        }
-                    ]
+            repositories {
+                maven {
+                    url "$m2"
                 }
             }
+
             """.trimIndent()
         )
 
         val toml = """
                 [libraries]
-                androidx-test-junit4 = "androidx.compose.ui:ui-test-junit4:1.1.0-rc02"
+                androidx-activity-activity-compose = "androidx.activity:activity-compose:1.9.3"
 
         """.trimIndent()
 
@@ -467,7 +112,7 @@ class VersionCatalogUpdatePluginTest {
 
         val buildResult = GradleRunner.create()
             .withProjectDir(tempDir.root)
-            .withArguments("versionCatalogUpdate")
+            .withArguments("versionCatalogUpdate", "-Pnl.littlerobots.vcu.resolver=true")
             .withPluginClasspath()
             .build()
 
@@ -476,21 +121,17 @@ class VersionCatalogUpdatePluginTest {
         assertEquals(
             """
                 [libraries]
-                androidx-test-junit4 = "androidx.compose.ui:ui-test-junit4:1.1.0-rc01"
+                androidx-activity-activity-compose = "androidx.activity:activity-compose:1.9.3"
 
             """.trimIndent(),
             libs
         )
+
         assertTrue(
             buildResult.output.contains(
                 """
-            Some libraries declared in the version catalog did not match the resolved version used this project.
-            This mismatch can occur when a version is declared that does not exist, or when a dependency is referenced by a transitive dependency that requires a different version.
-            The version in the version catalog has been updated to the actual version. If this is not what you want, consider using a strict version definition.
-
-            The affected libraries are:
-             - androidx.compose.ui:ui-test-junit4 (libs.androidx.test.junit4)
-                 requested: 1.1.0-rc02, resolved: 1.1.0-rc01
+                    There are libraries with invalid versions that could be updated:
+                     - androidx.activity:activity-compose (androidx-activity-activity-compose) -> 1.9.2
 
                 """.trimIndent()
             )
@@ -499,7 +140,7 @@ class VersionCatalogUpdatePluginTest {
 
     @Test
     fun `available update for version condition emits warning`() {
-        val reportJson = tempDir.newFile()
+        val m2 = File(javaClass.getResource("/m2/m2.txt")!!.file).absoluteFile.parent
 
         buildFile.writeText(
             """
@@ -507,37 +148,18 @@ class VersionCatalogUpdatePluginTest {
                 id "nl.littlerobots.version-catalog-update"
             }
 
-            tasks.named("versionCatalogUpdate").configure {
-                it.reportJson = file("${reportJson.name}")
+            repositories {
+                maven {
+                    url "$m2"
+                }
             }
-            """.trimIndent()
-        )
 
-        reportJson.writeText(
-            """
-            {
-                "outdated": {
-                    "dependencies": [
-                        {
-                            "group": "io.coil-kt",
-                            "available": {
-                                "release": null,
-                                "milestone": "2.0.0-alpha06",
-                                "integration": null
-                            },
-                            "userReason": null,
-                            "version": "2.0.0-alpha05",
-                            "projectUrl": "https://github.com/coil-kt/coil",
-                            "name": "coil-compose"
-                        }
-                    ]
-                }            }
             """.trimIndent()
         )
 
         val toml = """
                 [libraries]
-                coil = { module = "io.coil-kt:coil-compose", version = {strictly = "1.0.0"}}
+                androidx-activity-activity-compose = { module = "androidx.activity:activity-compose", version = { strictly = "1.4.0" } }
 
         """.trimIndent()
 
@@ -546,82 +168,8 @@ class VersionCatalogUpdatePluginTest {
 
         val buildResult = GradleRunner.create()
             .withProjectDir(tempDir.root)
-            .withArguments("versionCatalogUpdate")
+            .withArguments("versionCatalogUpdate", "-Pnl.littlerobots.vcu.resolver=true")
             .withPluginClasspath()
-            .build()
-
-        val libs = File(tempDir.root, "gradle/libs.versions.toml").readText()
-
-        assertEquals(
-            """
-                [libraries]
-                coil = { module = "io.coil-kt:coil-compose", version = { strictly = "1.0.0" } }
-
-            """.trimIndent(),
-            libs
-        )
-        assertTrue(
-            buildResult.output.contains(
-                """
-            There are libraries using a version condition that could be updated:
-             - io.coil-kt:coil-compose (coil) -> 2.0.0-alpha06
-                """.trimIndent()
-            )
-        )
-    }
-
-    @Test
-    fun `available update for plugin by descriptor with version condition emits warning`() {
-        val reportJson = tempDir.newFile()
-
-        buildFile.writeText(
-            """
-            plugins {
-                id "nl.littlerobots.version-catalog-update"
-            }
-
-            tasks.named("versionCatalogUpdate").configure {
-                it.reportJson = file("${reportJson.name}")
-            }
-            """.trimIndent()
-        )
-
-        reportJson.writeText(
-            """
-            {
-                "outdated": {
-                    "dependencies": [
-                        {
-                            "group": "nl.littlerobots.vcu",
-                            "available": {
-                                "release": null,
-                                "milestone": "2.0.0",
-                                "integration": null
-                            },
-                            "userReason": null,
-                            "version": "0.7.0",
-                            "projectUrl": "https://github.com/",
-                            "name": "nl.littlerobots.version-catalog-update.gradle.plugin"
-                        }
-                    ]
-                }            }
-            """.trimIndent()
-        )
-
-        val toml = """
-                [plugins]
-                vcu = { id = "nl.littlerobots.version-catalog-update", version = { strictly = "1.0.0" } }
-
-        """.trimIndent()
-
-        File(tempDir.root, "gradle").mkdir()
-        File(tempDir.root, "gradle/libs.versions.toml").writeText(toml)
-
-        val buildResult = GradleRunner.create()
-            .withProjectDir(tempDir.root)
-            .withArguments("versionCatalogUpdate")
-            .withPluginClasspath()
-            .withDebug(true)
             .build()
 
         val libs = File(tempDir.root, "gradle/libs.versions.toml").readText()
@@ -630,68 +178,47 @@ class VersionCatalogUpdatePluginTest {
             toml,
             libs
         )
-
         assertTrue(
             buildResult.output.contains(
                 """
-                   There are plugins using a version condition that could be updated:
-                    - nl.littlerobots.version-catalog-update (vcu) -> 2.0.0
+                    There are libraries using a rich version that could be updated:
+                     - androidx.activity:activity-compose (androidx-activity-activity-compose) -> 1.9.2
 
                 """.trimIndent()
             )
         )
     }
 
+    // No rich versions for plugins?
     @Test
-    fun `available update for plugin by artifact with version condition emits warning`() {
-        val reportJson = tempDir.newFile()
+    fun `available update for plugin by descriptor with version condition emits warning`() {
+        val m2 = File(javaClass.getResource("/m2/m2.txt")!!.file).absoluteFile.parent
 
         buildFile.writeText(
             """
             buildscript {
                 repositories {
-                    gradlePluginPortal()
-                }
-                dependencies {
-                    classpath "com.github.ben-manes:gradle-versions-plugin:0.46.0"
+                    maven {
+                        url "$m2"
+                    }
                 }
             }
-
             plugins {
                 id "nl.littlerobots.version-catalog-update"
             }
 
-            tasks.named("versionCatalogUpdate").configure {
-                it.reportJson = file("${reportJson.name}")
+            repositories {
+                maven {
+                    url "$m2"
+                }
             }
-            """.trimIndent()
-        )
 
-        reportJson.writeText(
-            """
-            {
-                "outdated": {
-                    "dependencies": [
-                        {
-                            "group": "com.github.ben-manes",
-                            "available": {
-                                "release": null,
-                                "milestone": "2.0.0",
-                                "integration": null
-                            },
-                            "userReason": null,
-                            "version": "0.7.0",
-                            "projectUrl": "https://github.com/",
-                            "name": "gradle-versions-plugin"
-                        }
-                    ]
-                }            }
             """.trimIndent()
         )
 
         val toml = """
                 [plugins]
-                versions = { id = "com.github.ben-manes.versions", version = { strictly = "1.0.0" } }
+                android-library = { id = "com.android.library", version = { strictly = "8.7.0" } }
 
         """.trimIndent()
 
@@ -700,7 +227,7 @@ class VersionCatalogUpdatePluginTest {
 
         val buildResult = GradleRunner.create()
             .withProjectDir(tempDir.root)
-            .withArguments("versionCatalogUpdate")
+            .withArguments("versionCatalogUpdate", "-Pnl.littlerobots.vcu.resolver=true")
             .withPluginClasspath()
             .withDebug(true)
             .build()
@@ -715,8 +242,8 @@ class VersionCatalogUpdatePluginTest {
         assertTrue(
             buildResult.output.contains(
                 """
-                    There are plugins using a version condition that could be updated:
-                     - com.github.ben-manes.versions (versions) -> 2.0.0
+                    There are plugins using a rich version that could be updated:
+                     - com.android.library (android-library) -> 8.7.1
 
                 """.trimIndent()
             )
@@ -725,48 +252,36 @@ class VersionCatalogUpdatePluginTest {
 
     @Test
     fun `available update for plugin with version condition references version group in warning`() {
-        val reportJson = tempDir.newFile()
+        val m2 = File(javaClass.getResource("/m2/m2.txt")!!.file).absoluteFile.parent
 
         buildFile.writeText(
             """
+            buildscript {
+                repositories {
+                    maven {
+                        url "$m2"
+                    }
+                }
+            }
             plugins {
                 id "nl.littlerobots.version-catalog-update"
             }
 
-            tasks.named("versionCatalogUpdate").configure {
-                it.reportJson = file("${reportJson.name}")
+            repositories {
+                maven {
+                    url "$m2"
+                }
             }
-            """.trimIndent()
-        )
 
-        reportJson.writeText(
-            """
-            {
-                "outdated": {
-                    "dependencies": [
-                        {
-                            "group": "nl.littlerobots.vcu",
-                            "available": {
-                                "release": null,
-                                "milestone": "2.0.0",
-                                "integration": null
-                            },
-                            "userReason": null,
-                            "version": "0.7.0",
-                            "projectUrl": "https://github.com/",
-                            "name": "nl.littlerobots.version-catalog-update.gradle.plugin"
-                        }
-                    ]
-                }            }
             """.trimIndent()
         )
 
         val toml = """
                 [versions]
-                vcu = { strictly = "1.0.0" }
+                android = { strictly = "8.7.0" }
 
                 [plugins]
-                vcu = { id = "nl.littlerobots.version-catalog-update", version.ref = "vcu" }
+                android-library = { id = "com.android.library", version.ref = "android" }
 
         """.trimIndent()
 
@@ -775,7 +290,7 @@ class VersionCatalogUpdatePluginTest {
 
         val buildResult = GradleRunner.create()
             .withProjectDir(tempDir.root)
-            .withArguments("versionCatalogUpdate")
+            .withArguments("versionCatalogUpdate", "-Pnl.littlerobots.vcu.resolver=true")
             .withPluginClasspath()
             .withDebug(true)
             .build()
@@ -790,8 +305,8 @@ class VersionCatalogUpdatePluginTest {
         assertTrue(
             buildResult.output.contains(
                 """
-                    There are plugins using a version condition that could be updated:
-                     - nl.littlerobots.version-catalog-update (vcu ref:vcu) -> 2.0.0
+                    There are plugins using a rich version that could be updated:
+                     - com.android.library (android-library ref:android) -> 8.7.1
 
                 """.trimIndent()
             )
@@ -800,7 +315,7 @@ class VersionCatalogUpdatePluginTest {
 
     @Test
     fun `available update for pinned library emits message`() {
-        val reportJson = tempDir.newFile()
+        val m2 = File(javaClass.getResource("/m2/m2.txt")!!.file).absoluteFile.parent
 
         buildFile.writeText(
             """
@@ -808,38 +323,19 @@ class VersionCatalogUpdatePluginTest {
                 id "nl.littlerobots.version-catalog-update"
             }
 
-            tasks.named("versionCatalogUpdate").configure {
-                it.reportJson = file("${reportJson.name}")
+            repositories {
+                maven {
+                    url "$m2"
+                }
             }
-            """.trimIndent()
-        )
 
-        reportJson.writeText(
-            """
-            {
-                "outdated": {
-                    "dependencies": [
-                        {
-                            "group": "io.coil-kt",
-                            "available": {
-                                "release": null,
-                                "milestone": "2.0.0-alpha06",
-                                "integration": null
-                            },
-                            "userReason": null,
-                            "version": "2.0.0-alpha05",
-                            "projectUrl": "https://github.com/coil-kt/coil",
-                            "name": "coil-compose"
-                        }
-                    ]
-                }            }
             """.trimIndent()
         )
 
         val toml = """
                 [libraries]
                 # @pin
-                coil = { module = "io.coil-kt:coil-compose", version = "2.0.0-alpha05" }
+                androidx-activity-activity-compose = "androidx.activity:activity-compose:1.4.0"
 
         """.trimIndent()
 
@@ -848,28 +344,22 @@ class VersionCatalogUpdatePluginTest {
 
         val buildResult = GradleRunner.create()
             .withProjectDir(tempDir.root)
-            .withArguments("versionCatalogUpdate")
+            .withArguments("versionCatalogUpdate", "-Pnl.littlerobots.vcu.resolver=true")
             .withPluginClasspath()
-            .withDebug(true)
             .build()
 
         val libs = File(tempDir.root, "gradle/libs.versions.toml").readText()
 
         assertEquals(
-            """
-                [libraries]
-                # @pin
-                coil = "io.coil-kt:coil-compose:2.0.0-alpha05"
-
-            """.trimIndent(),
+            toml,
             libs
         )
-        println(buildResult.output)
+
         assertTrue(
             buildResult.output.contains(
                 """
                     There are updates available for pinned libraries in the version catalog:
-                     - io.coil-kt:coil-compose (coil) 2.0.0-alpha05 -> 2.0.0-alpha06
+                     - androidx.activity:activity-compose (androidx-activity-activity-compose) 1.4.0 -> 1.9.2
 
                 """.trimIndent()
             )
@@ -878,45 +368,34 @@ class VersionCatalogUpdatePluginTest {
 
     @Test
     fun `available update for pinned plugin emits message`() {
-        val reportJson = tempDir.newFile()
+        val m2 = File(javaClass.getResource("/m2/m2.txt")!!.file).absoluteFile.parent
 
         buildFile.writeText(
             """
+            buildscript {
+                repositories {
+                    maven {
+                        url "$m2"
+                    }
+                }
+            }
             plugins {
                 id "nl.littlerobots.version-catalog-update"
             }
 
-            tasks.named("versionCatalogUpdate").configure {
-                it.reportJson = file("${reportJson.name}")
+            repositories {
+                maven {
+                    url "$m2"
+                }
             }
-            """.trimIndent()
-        )
 
-        reportJson.writeText(
-            """
-            {
-                "outdated": {
-                    "dependencies": [
-                        {
-                            "group": "nl.littlerobots.version-catalog-update",
-                            "available": {
-                                "release": null,
-                                "milestone": "0.2.0",
-                                "integration": null
-                            },
-                            "userReason": null,
-                            "version": "0.1.0",
-                            "name": "nl.littlerobots.version-catalog-update.gradle.plugin"
-                        }
-                    ]
-                }            }
             """.trimIndent()
         )
 
         val toml = """
                 [plugins]
                 # @pin
-                vcu = { id = "nl.littlerobots.version-catalog-update", version = "0.1.0" }
+                android-library = "com.android.library:8.7.0"
 
         """.trimIndent()
 
@@ -925,28 +404,22 @@ class VersionCatalogUpdatePluginTest {
 
         val buildResult = GradleRunner.create()
             .withProjectDir(tempDir.root)
-            .withArguments("versionCatalogUpdate")
+            .withArguments("versionCatalogUpdate", "-Pnl.littlerobots.vcu.resolver=true")
             .withPluginClasspath()
-            .withDebug(true)
             .build()
 
         val libs = File(tempDir.root, "gradle/libs.versions.toml").readText()
 
         assertEquals(
-            """
-               [plugins]
-               # @pin
-               vcu = "nl.littlerobots.version-catalog-update:0.1.0"
-
-            """.trimIndent(),
+            toml,
             libs
         )
-        println(buildResult.output)
+
         assertTrue(
             buildResult.output.contains(
                 """
                     There are updates available for pinned plugins in the version catalog:
-                     - nl.littlerobots.version-catalog-update (vcu) 0.1.0 -> 0.2.0
+                     - com.android.library (android-library) 8.7.0 -> 8.7.1
 
                 """.trimIndent()
             )
@@ -954,58 +427,34 @@ class VersionCatalogUpdatePluginTest {
     }
 
     @Test
-    fun `adds VersionCatalogUpdateTask and sets report path`() {
-        val project: Project = ProjectBuilder.builder().build()
-        project.pluginManager.apply("com.github.ben-manes.versions")
-        project.pluginManager.apply("nl.littlerobots.version-catalog-update")
-        // force creation and configuration of dependent task
-        project.tasks.getByName("dependencyUpdates")
-
-        val task = project.tasks.getByName(UPDATE_TASK_NAME) as VersionCatalogUpdateTask
-        assertNotNull(task.reportJson.orNull)
-    }
-
-    @Test
     fun `proceed plugin in catalog without version`() {
-        val reportJson = tempDir.newFile()
+        val m2 = File(javaClass.getResource("/m2/m2.txt")!!.file).absoluteFile.parent
 
         buildFile.writeText(
             """
+            buildscript {
+                repositories {
+                    maven {
+                        url "$m2"
+                    }
+                }
+            }
             plugins {
                 id "nl.littlerobots.version-catalog-update"
             }
 
-            tasks.named("versionCatalogUpdate").configure {
-                it.reportJson = file("${reportJson.name}")
-            }
-
-            versionCatalogUpdate {
-                keep.keepUnusedPlugins.set(true)
-            }
-            """.trimIndent()
-        )
-
-        reportJson.writeText(
-            """
-            {
-                "current": {
-                    "dependencies": [
-                            {
-                                "group": "io.gitlab.arturbosch.detekt",
-                                "userReason": null,
-                                "version": "1.19.0",
-                                "projectUrl": "https://detekt.github.io/detekt",
-                                "name": "detekt-formatting"
-                            }
-                    ]
+            repositories {
+                maven {
+                    url "$m2"
                 }
             }
+
             """.trimIndent()
         )
 
         val toml = """
                 [plugins]
-                detekt = { id = "io.gitlab.arturbosch.detekt" }
+                android-library = { id = "com.android.library" }
 
         """.trimIndent()
         File(tempDir.root, "gradle").mkdir()
@@ -1013,44 +462,31 @@ class VersionCatalogUpdatePluginTest {
 
         GradleRunner.create()
             .withProjectDir(tempDir.root)
-            .withArguments("versionCatalogUpdate")
-            .withDebug(true)
+            .withArguments("versionCatalogUpdate", "-Pnl.littlerobots.vcu.resolver=true")
             .withPluginClasspath()
             .build()
 
         val libs = File(tempDir.root, "gradle/libs.versions.toml").readText()
 
         assertEquals(
-            """
-                [plugins]
-                detekt = { id = "io.gitlab.arturbosch.detekt" }
-
-            """.trimIndent(),
+            toml,
             libs
         )
     }
 
     @Test
     fun `sortByKey set to false does not sort the toml file`() {
-        val reportJson = tempDir.newFile()
-
         buildFile.writeText(
             """
             plugins {
                 id "nl.littlerobots.version-catalog-update"
             }
 
-            tasks.named("versionCatalogUpdate").configure {
-                it.reportJson = file("${reportJson.name}")
-            }
-
-            versionCatalogUpdate {
-                keep {
-                    keepUnusedLibraries = true
-                    keepUnusedVersions = true
-                    keepUnusedPlugins = true
-                }
+             versionCatalogUpdate {
                 sortByKey = false
+                 keep {
+                    keepUnusedVersions = true
+                }
             }
             """.trimIndent()
         )
@@ -1074,19 +510,12 @@ class VersionCatalogUpdatePluginTest {
 
         """.trimIndent()
 
-        reportJson.writeText(
-            """
-            {
-            }
-            """.trimIndent()
-        )
         File(tempDir.root, "gradle").mkdir()
         File(tempDir.root, "gradle/libs.versions.toml").writeText(toml)
 
         GradleRunner.create()
             .withProjectDir(tempDir.root)
-            .withArguments("versionCatalogUpdate")
-            .withDebug(true)
+            .withArguments("versionCatalogUpdate", "-Pnl.littlerobots.vcu.resolver=true")
             .withPluginClasspath()
             .build()
 
@@ -1121,25 +550,18 @@ class VersionCatalogUpdatePluginTest {
 
     @Test
     fun `sortByKey defaults to true and sorts the toml file`() {
-        val reportJson = tempDir.newFile()
-
         buildFile.writeText(
             """
             plugins {
                 id "nl.littlerobots.version-catalog-update"
             }
 
-            tasks.named("versionCatalogUpdate").configure {
-                it.reportJson = file("${reportJson.name}")
-            }
 
-            versionCatalogUpdate {
-                keep {
-                    keepUnusedLibraries = true
+             versionCatalogUpdate {
+                 keep {
                     keepUnusedVersions = true
-                    keepUnusedPlugins = true
                 }
-            }
+             }
             """.trimIndent()
         )
 
@@ -1162,19 +584,12 @@ class VersionCatalogUpdatePluginTest {
 
         """.trimIndent()
 
-        reportJson.writeText(
-            """
-            {
-            }
-            """.trimIndent()
-        )
         File(tempDir.root, "gradle").mkdir()
         File(tempDir.root, "gradle/libs.versions.toml").writeText(toml)
 
         GradleRunner.create()
             .withProjectDir(tempDir.root)
-            .withArguments("versionCatalogUpdate")
-            .withDebug(true)
+            .withArguments("versionCatalogUpdate", "-Pnl.littlerobots.vcu.resolver=true")
             .withPluginClasspath()
             .build()
 
@@ -1217,16 +632,9 @@ class VersionCatalogUpdatePluginTest {
                 id "nl.littlerobots.version-catalog-update"
             }
 
-            tasks.named("versionCatalogUpdate").configure {
-                it.reportJson = file("${reportJson.name}")
-            }
-
-            // keep everything so that we can run an empty report
             versionCatalogUpdate {
                 keep {
-                    keepUnusedLibraries = true
                     keepUnusedVersions = true
-                    keepUnusedPlugins = true
                 }
             }
             """.trimIndent()
@@ -1274,7 +682,7 @@ class VersionCatalogUpdatePluginTest {
 
         GradleRunner.create()
             .withProjectDir(tempDir.root)
-            .withArguments("versionCatalogUpdate")
+            .withArguments("versionCatalogUpdate", "-Pnl.littlerobots.vcu.resolver=true")
             .withDebug(true)
             .withPluginClasspath()
             .build()
@@ -1321,18 +729,19 @@ class VersionCatalogUpdatePluginTest {
     }
 
     @Test
-    fun `keeps annotated entries in toml file`() {
-        val reportJson = tempDir.newFile()
-
+    fun `keeps annotated versions in toml file`() {
         buildFile.writeText(
             """
             plugins {
                 id "nl.littlerobots.version-catalog-update"
             }
 
-            tasks.named("versionCatalogUpdate").configure {
-                it.reportJson = file("${reportJson.name}")
+            versionCatalogUpdate {
+                keep {
+                    keepUnusedVersions = false
+                }
             }
+
             """.trimIndent()
         )
 
@@ -1343,30 +752,20 @@ class VersionCatalogUpdatePluginTest {
             aaa = "4.5.6"
 
             [libraries]
-            bbb = {module = "example:library", version.ref = "bbb"}
-            #@keep
             aaa = "some:library:2.0"
 
             # plugins table comment
             [plugins]
-            bbb = { id = "some.id", version.ref = "bbb" }
-            # @keep
             aaa = "another.id:1.0.0"
 
         """.trimIndent()
 
-        reportJson.writeText(
-            """
-            {
-            }
-            """.trimIndent()
-        )
         File(tempDir.root, "gradle").mkdir()
         File(tempDir.root, "gradle/libs.versions.toml").writeText(toml)
 
         GradleRunner.create()
             .withProjectDir(tempDir.root)
-            .withArguments("versionCatalogUpdate")
+            .withArguments("versionCatalogUpdate", "-Pnl.littlerobots.vcu.resolver=true")
             .withDebug(true)
             .withPluginClasspath()
             .build()
@@ -1380,12 +779,10 @@ class VersionCatalogUpdatePluginTest {
                bbb = "1.2.3"
 
                [libraries]
-               #@keep
                aaa = "some:library:2.0"
 
                # plugins table comment
                [plugins]
-               # @keep
                aaa = "another.id:1.0.0"
 
             """.trimIndent(),
@@ -1395,93 +792,51 @@ class VersionCatalogUpdatePluginTest {
 
     @Test
     fun `pins annotated entries in toml file`() {
-        val reportJson = tempDir.newFile()
+        val m2 = File(javaClass.getResource("/m2/m2.txt")!!.file).absoluteFile.parent
 
         buildFile.writeText(
             """
+            buildscript {
+                repositories {
+                    maven {
+                        url "$m2"
+                    }
+                }
+            }
             plugins {
                 id "nl.littlerobots.version-catalog-update"
             }
 
-            tasks.named("versionCatalogUpdate").configure {
-                it.reportJson = file("${reportJson.name}")
+            repositories {
+                maven {
+                    url "$m2"
+                }
             }
+
             """.trimIndent()
         )
 
         val toml = """
             [versions]
             # @pin
-            bbb = "1.2.3"
+            activity-compose = "1.4.0"
 
             [libraries]
-            bbb = {module = "example:library", version.ref = "bbb"}
-            #@pinned
-            aaa = "some:library:2.0"
+            # @pinned
+            activity-compose = {module = "androidx.activity:activity-compose", version.ref = "activity-compose"}
 
             [plugins]
-            bbb = { id = "some.id", version.ref = "bbb" }
-            # @pin this plugin version
-            aaa = "another.id:1.0.0"
+            # @pin
+            android-library = "com.android.library:8.7.0"
 
         """.trimIndent()
 
-        reportJson.writeText(
-            """
-               {
-                 "outdated": {
-                   "dependencies": [
-                     {
-                       "group": "example",
-                       "available": {
-                         "release": null,
-                         "milestone": "2.0.0-alpha06",
-                         "integration": null
-                       },
-                       "version": "1.0.0-alpha05",
-                       "name": "library"
-                     },
-                     {
-                       "group": "some",
-                       "available": {
-                         "release": null,
-                         "milestone": "3.0.0-alpha06",
-                         "integration": null
-                       },
-                       "version": "1.0.0-alpha05",
-                       "name": "library"
-                     },
-                     {
-                       "group": "com.some.plugin",
-                       "available": {
-                         "release": null,
-                         "milestone": "3.0.0-alpha06",
-                         "integration": null
-                       },
-                       "version": "1.0.0-alpha05",
-                       "name": "some.id.gradle.plugin"
-                     },
-                     {
-                       "group": "com.another.plugin",
-                       "available": {
-                         "release": null,
-                         "milestone": "3.0.0-alpha06",
-                         "integration": null
-                       },
-                       "version": "1.0.0-alpha05",
-                       "name": "another.id.gradle.plugin"
-                     }
-                   ]
-                 }
-               }
-            """.trimIndent()
-        )
         File(tempDir.root, "gradle").mkdir()
         File(tempDir.root, "gradle/libs.versions.toml").writeText(toml)
 
         GradleRunner.create()
             .withProjectDir(tempDir.root)
-            .withArguments("versionCatalogUpdate")
+            .withArguments("versionCatalogUpdate", "-Pnl.littlerobots.vcu.resolver=true")
             .withDebug(true)
             .withPluginClasspath()
             .build()
@@ -1492,17 +847,15 @@ class VersionCatalogUpdatePluginTest {
             """
                 [versions]
                 # @pin
-                bbb = "1.2.3"
+                activity-compose = "1.4.0"
 
                 [libraries]
-                #@pinned
-                aaa = "some:library:2.0"
-                bbb = { module = "example:library", version.ref = "bbb" }
+                # @pinned
+                activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activity-compose" }
 
                 [plugins]
-                # @pin this plugin version
-                aaa = "another.id:1.0.0"
-                bbb = { id = "some.id", version.ref = "bbb" }
+                # @pin
+                android-library = "com.android.library:8.7.0"
 
             """.trimIndent(),
             libs
@@ -1512,7 +865,6 @@ class VersionCatalogUpdatePluginTest {
     @Test
     // repro for https://github.com/littlerobots/version-catalog-update-plugin/issues/61
     fun `unused pins should be ignored when generating pin warnings`() {
-        val reportJson = tempDir.newFile()
 
         buildFile.writeText(
             """
@@ -1520,13 +872,8 @@ class VersionCatalogUpdatePluginTest {
                 id "nl.littlerobots.version-catalog-update"
             }
 
-            tasks.named("versionCatalogUpdate").configure {
-                it.reportJson = file("${reportJson.name}")
-            }
             """.trimIndent()
         )
-
-        reportJson.writeText("{}")
 
         val toml = """
             [libraries]
@@ -1546,7 +893,7 @@ class VersionCatalogUpdatePluginTest {
 
         GradleRunner.create()
             .withProjectDir(tempDir.root)
-            .withArguments("versionCatalogUpdate")
+            .withArguments("versionCatalogUpdate", "-Pnl.littlerobots.vcu.resolver=true")
             .withDebug(true)
             .withPluginClasspath()
             .build()
@@ -1554,64 +901,39 @@ class VersionCatalogUpdatePluginTest {
 
     @Test
     fun `interactive mode stages changes`() {
-        val reportJson = tempDir.newFile()
+        val m2 = File(javaClass.getResource("/m2/m2.txt")!!.file).absoluteFile.parent
 
         buildFile.writeText(
             """
+            buildscript {
+                repositories {
+                    maven {
+                        url "$m2"
+                    }
+                }
+            }
             plugins {
                 id "nl.littlerobots.version-catalog-update"
             }
 
-            tasks.named("versionCatalogUpdate").configure {
-                it.reportJson = file("${reportJson.name}")
-            }
-            """.trimIndent()
-        )
-
-        reportJson.writeText(
-            """
-            {
-                "outdated": {
-                    "dependencies": [
-                        {
-                            "group": "io.coil-kt",
-                            "available": {
-                                "release": null,
-                                "milestone": "2.0.0-alpha06",
-                                "integration": null
-                            },
-                            "userReason": null,
-                            "version": "2.0.0-alpha05",
-                            "projectUrl": "https://github.com/coil-kt/coil",
-                            "name": "coil-compose"
-                        },
-                        {
-                            "group": "nl.littlerobots.version-catalog-update",
-                            "available": {
-                                "release": null,
-                                "milestone": "0.2.0",
-                                "integration": null
-                            },
-                            "userReason": null,
-                            "version": "0.1.0",
-                            "name": "nl.littlerobots.version-catalog-update.gradle.plugin"
-                        }
-
-                    ]
+            repositories {
+                maven {
+                    url "$m2"
                 }
             }
+
             """.trimIndent()
         )
 
         val toml = """
             [versions]
-            coil = "1.0.0"
+            activity-compose = "1.4.0"
 
             [libraries]
-            test = { module = "io.coil-kt:coil-compose", version.ref = "coil" }
+            test = { module = "androidx.activity:activity-compose", version.ref = "activity-compose" }
 
             [plugins]
-            vcu = "nl.littlerobots.version-catalog-update:1.0"
+            android-library = "com.android.library:8.7.0"
         """.trimIndent()
 
         File(tempDir.root, "gradle").mkdir()
@@ -1619,7 +941,7 @@ class VersionCatalogUpdatePluginTest {
 
         GradleRunner.create()
             .withProjectDir(tempDir.root)
-            .withArguments("versionCatalogUpdate", "--interactive")
+            .withArguments("versionCatalogUpdate", "--interactive", "-Pnl.littlerobots.vcu.resolver=true")
             .withPluginClasspath()
             .build()
 
@@ -1633,19 +955,19 @@ class VersionCatalogUpdatePluginTest {
 
         assertEquals(
             """
-            #
-            # Contents of this file will be applied to libs.versions.toml when running versionCatalogApplyUpdates.
-            #
-            # Comments will not be applied to the version catalog when updating.
-            # To prevent a version upgrade, comment out the entry or remove it.
-            #
-            [libraries]
-            # From version 1.0.0 --> 2.0.0-alpha06
-            test = "io.coil-kt:coil-compose:2.0.0-alpha06"
+                #
+                # Contents of this file will be applied to libs.versions.toml when running versionCatalogApplyUpdates.
+                #
+                # Comments will not be applied to the version catalog when updating.
+                # To prevent a version upgrade, comment out the entry or remove it.
+                #
+                [libraries]
+                # From version 1.4.0 --> 1.9.2
+                test = "androidx.activity:activity-compose:1.9.2"
 
-            [plugins]
-            # From version 1.0 --> 0.2.0
-            vcu = "nl.littlerobots.version-catalog-update:0.2.0"
+                [plugins]
+                # From version 8.7.0 --> 8.7.1
+                android-library = "com.android.library:8.7.1"
             """.trimIndent(),
             fileWithoutDateHeader
         )
@@ -1653,31 +975,39 @@ class VersionCatalogUpdatePluginTest {
 
     @Test
     fun `interactive mode without updates does not create staging file`() {
-        val reportJson = tempDir.newFile()
+        val m2 = File(javaClass.getResource("/m2/m2.txt")!!.file).absoluteFile.parent
 
         buildFile.writeText(
             """
+            buildscript {
+                repositories {
+                    maven {
+                        url "$m2"
+                    }
+                }
+            }
             plugins {
                 id "nl.littlerobots.version-catalog-update"
             }
 
-            tasks.named("versionCatalogUpdate").configure {
-                it.reportJson = file("${reportJson.name}")
+            repositories {
+                maven {
+                    url "$m2"
+                }
             }
+
             """.trimIndent()
         )
 
-        reportJson.writeText("{}")
-
         val toml = """
             [versions]
-            coil = "1.0.0"
+            activity-compose = "1.9.2"
 
             [libraries]
-            test = { module = "io.coil-kt:coil-compose", version.ref = "coil" }
+            test = { module = "androidx.activity:activity-compose", version.ref = "activity-compose" }
 
             [plugins]
-            vcu = "nl.littlerobots.version-catalog-update:1.0"
+            android-library = "com.android.library:8.7.1"
         """.trimIndent()
 
         File(tempDir.root, "gradle").mkdir()
@@ -1685,7 +1015,7 @@ class VersionCatalogUpdatePluginTest {
 
         GradleRunner.create()
             .withProjectDir(tempDir.root)
-            .withArguments("versionCatalogUpdate", "--interactive")
+            .withArguments("versionCatalogUpdate", "--interactive", "-Pnl.littlerobots.vcu.resolver=true")
             .withPluginClasspath()
             .build()
 
@@ -1695,66 +1025,40 @@ class VersionCatalogUpdatePluginTest {
 
     @Test
     fun `interactive mode marks pinned changes`() {
-        val reportJson = tempDir.newFile()
+        val m2 = File(javaClass.getResource("/m2/m2.txt")!!.file).absoluteFile.parent
 
         buildFile.writeText(
             """
+            buildscript {
+                repositories {
+                    maven {
+                        url "$m2"
+                    }
+                }
+            }
             plugins {
                 id "nl.littlerobots.version-catalog-update"
             }
 
-            tasks.named("versionCatalogUpdate").configure {
-                it.reportJson = file("${reportJson.name}")
-            }
-            """.trimIndent()
-        )
-
-        reportJson.writeText(
-            """
-            {
-                "outdated": {
-                    "dependencies": [
-                        {
-                            "group": "io.coil-kt",
-                            "available": {
-                                "release": null,
-                                "milestone": "2.0.0-alpha06",
-                                "integration": null
-                            },
-                            "userReason": null,
-                            "version": "2.0.0-alpha05",
-                            "projectUrl": "https://github.com/coil-kt/coil",
-                            "name": "coil-compose"
-                        },
-                        {
-                            "group": "nl.littlerobots.version-catalog-update",
-                            "available": {
-                                "release": null,
-                                "milestone": "0.2.0",
-                                "integration": null
-                            },
-                            "userReason": null,
-                            "version": "0.1.0",
-                            "name": "nl.littlerobots.version-catalog-update.gradle.plugin"
-                        }
-
-                    ]
+            repositories {
+                maven {
+                    url "$m2"
                 }
             }
+
             """.trimIndent()
         )
 
         val toml = """
             [versions]
-            coil = "1.0.0"
+            activity-compose = "1.4.0"
 
             [libraries]
             # @pin
-            test = { module = "io.coil-kt:coil-compose", version.ref = "coil" }
+            test = { module = "androidx.activity:activity-compose", version.ref = "activity-compose" }
 
             [plugins]
-            # @pin
-            vcu = "nl.littlerobots.version-catalog-update:1.0"
+            android-library = "com.android.library:8.7.0"
         """.trimIndent()
 
         File(tempDir.root, "gradle").mkdir()
@@ -1762,7 +1066,7 @@ class VersionCatalogUpdatePluginTest {
 
         GradleRunner.create()
             .withProjectDir(tempDir.root)
-            .withArguments("versionCatalogUpdate", "--interactive")
+            .withArguments("versionCatalogUpdate", "--interactive", "-Pnl.littlerobots.vcu.resolver=true")
             .withPluginClasspath()
             .build()
 
@@ -1776,19 +1080,19 @@ class VersionCatalogUpdatePluginTest {
 
         assertEquals(
             """
-            #
-            # Contents of this file will be applied to libs.versions.toml when running versionCatalogApplyUpdates.
-            #
-            # Comments will not be applied to the version catalog when updating.
-            # To prevent a version upgrade, comment out the entry or remove it.
-            #
-            [libraries]
-            # @pinned version 1.0.0 --> 2.0.0-alpha06
-            #test = "io.coil-kt:coil-compose:2.0.0-alpha06"
+                #
+                # Contents of this file will be applied to libs.versions.toml when running versionCatalogApplyUpdates.
+                #
+                # Comments will not be applied to the version catalog when updating.
+                # To prevent a version upgrade, comment out the entry or remove it.
+                #
+                [libraries]
+                # @pinned version 1.4.0 --> 1.9.2
+                #test = "androidx.activity:activity-compose:1.9.2"
 
-            [plugins]
-            # @pinned version 1.0 --> 0.2.0
-            #vcu = "nl.littlerobots.version-catalog-update:0.2.0"
+                [plugins]
+                # From version 8.7.0 --> 8.7.1
+                android-library = "com.android.library:8.7.1"
             """.trimIndent(),
             fileWithoutDateHeader
         )
@@ -1796,21 +1100,14 @@ class VersionCatalogUpdatePluginTest {
 
     @Test
     fun `normal update fails when staging file is present`() {
-        val reportJson = tempDir.newFile()
-
         buildFile.writeText(
             """
             plugins {
                 id "nl.littlerobots.version-catalog-update"
             }
 
-            tasks.named("versionCatalogUpdate").configure {
-                it.reportJson = file("${reportJson.name}")
-            }
             """.trimIndent()
         )
-
-        reportJson.writeText("{}")
 
         val toml = """
             [versions]
@@ -1827,151 +1124,25 @@ class VersionCatalogUpdatePluginTest {
 
         val result = GradleRunner.create()
             .withProjectDir(tempDir.root)
-            .withArguments("versionCatalogUpdate")
+            .withArguments("versionCatalogUpdate", "-Pnl.littlerobots.vcu.resolver=true")
             .withPluginClasspath()
             .buildAndFail()
 
         assertTrue(result.output.contains("libs.versions.updates.toml exists, did you mean to run the versionCatalogApplyUpdates task to apply the updates?"))
     }
 
-    @Test // repro for https://github.com/littlerobots/version-catalog-update-plugin/issues/71
-    fun `Transitive dependencies reported as current with different versions should be treated as unused`() {
-        val reportJson = tempDir.newFile()
-
-        buildFile.writeText(
-            """
-            plugins {
-                id "nl.littlerobots.version-catalog-update"
-            }
-
-            tasks.named("versionCatalogUpdate").configure {
-                it.reportJson = file("${reportJson.name}")
-            }
-            """.trimIndent()
-        )
-
-        reportJson.writeText(
-            """
-                        {
-                "current": {
-                    "dependencies": [
-                        {
-                            "group": "androidx.activity",
-                            "userReason": null,
-                            "version": "1.4.0",
-                            "projectUrl": "https://developer.android.com/jetpack/androidx/releases/activity#1.4.0",
-                            "name": "activity-compose"
-                        }
-                   ]
-                }
-                }
-            """.trimIndent()
-        )
-
-        val toml = """
-            [libraries]
-            # an entry that is never used as a direct dependency
-            unused = "androidx.activity:activity-compose:1.6.0"
-        """.trimIndent()
-
-        val tomlFile = File(tempDir.root, "gradle/libs.versions.toml")
-        File(tempDir.root, "gradle").mkdir()
-        tomlFile.writeText(toml)
-
-        GradleRunner.create()
-            .withProjectDir(tempDir.root)
-            .withArguments("versionCatalogUpdate")
-            .withPluginClasspath()
-            .build()
-
-        assertEquals("", tomlFile.readText())
-    }
-
-    @Test
-    fun `interactive retains kept references`() {
-        val reportJson = tempDir.newFile()
-
-        buildFile.writeText(
-            """
-            plugins {
-                id "nl.littlerobots.version-catalog-update"
-            }
-
-            tasks.named("versionCatalogUpdate").configure {
-                it.reportJson = file("${reportJson.name}")
-            }
-            """.trimIndent()
-        )
-
-        reportJson.writeText("{}")
-
-        val toml = """
-            [versions]
-            # @keep
-            coil = "1.0.0"
-
-            [libraries]
-            # removed event though the version is kept!
-            test = { module = "io.coil-kt:coil-compose", version.ref = "coil" }
-        """.trimIndent()
-
-        val tomlFile = File(tempDir.root, "gradle/libs.versions.toml")
-        File(tempDir.root, "gradle").mkdir()
-        tomlFile.writeText(toml)
-
-        GradleRunner.create()
-            .withProjectDir(tempDir.root)
-            .withArguments("versionCatalogUpdate", "--interactive")
-            .withPluginClasspath()
-            .build()
-
-        assertEquals(
-            """
-            [versions]
-            # @keep
-            coil = "1.0.0"
-
-            """.trimIndent(),
-            tomlFile.readText()
-        )
-    }
-
     @Test
     fun `keep all versions retains version order in catalog`() {
-        val reportJson = tempDir.newFile()
-
         buildFile.writeText(
             """
             plugins {
                 id "nl.littlerobots.version-catalog-update"
             }
 
-            tasks.named("versionCatalogUpdate").configure {
-                it.reportJson = file("${reportJson.name}")
-            }
-
             versionCatalogUpdate {
                 sortByKey = false
                 keep.keepUnusedVersions.set(true)
             }
-            """.trimIndent()
-        )
-
-        reportJson.writeText(
-            """
-                        {
-                "current": {
-                    "dependencies": [
-                        {
-                            "group": "androidx.activity",
-                            "userReason": null,
-                            "version": "1.4.0",
-                            "projectUrl": "https://developer.android.com/jetpack/androidx/releases/activity#1.4.0",
-                            "name": "activity-compose"
-                        }
-                   ]
-                }
-                }
             """.trimIndent()
         )
 
@@ -1991,7 +1162,7 @@ class VersionCatalogUpdatePluginTest {
 
         GradleRunner.create()
             .withProjectDir(tempDir.root)
-            .withArguments("versionCatalogUpdate")
+            .withArguments("versionCatalogUpdate", "-Pnl.littlerobots.vcu.resolver=true")
             .withPluginClasspath()
             .build()
 
@@ -2000,41 +1171,18 @@ class VersionCatalogUpdatePluginTest {
             tomlFile.readText()
         )
     }
+
     @Test
     fun `kept version retains order in catalog`() {
-        val reportJson = tempDir.newFile()
-
         buildFile.writeText(
             """
             plugins {
                 id "nl.littlerobots.version-catalog-update"
             }
 
-            tasks.named("versionCatalogUpdate").configure {
-                it.reportJson = file("${reportJson.name}")
-            }
-
             versionCatalogUpdate {
                 sortByKey = false
             }
-            """.trimIndent()
-        )
-
-        reportJson.writeText(
-            """
-                        {
-                "current": {
-                    "dependencies": [
-                        {
-                            "group": "androidx.activity",
-                            "userReason": null,
-                            "version": "1.4.0",
-                            "projectUrl": "https://developer.android.com/jetpack/androidx/releases/activity#1.4.0",
-                            "name": "activity-compose"
-                        }
-                   ]
-                }
-                }
             """.trimIndent()
         )
 
@@ -2055,7 +1203,7 @@ class VersionCatalogUpdatePluginTest {
 
         GradleRunner.create()
             .withProjectDir(tempDir.root)
-            .withArguments("versionCatalogUpdate")
+            .withArguments("versionCatalogUpdate", "-Pnl.littlerobots.vcu.resolver=true")
             .withPluginClasspath()
             .build()
 
@@ -2066,28 +1214,18 @@ class VersionCatalogUpdatePluginTest {
     }
 
     @Test
-    fun `retains order of tables in the verison catalog`() {
-        val reportJson = tempDir.newFile()
-
+    fun `retains order of tables in the version catalog`() {
         buildFile.writeText(
             """
             plugins {
                 id "nl.littlerobots.version-catalog-update"
             }
 
-            tasks.named("versionCatalogUpdate").configure {
-                it.reportJson = file("${reportJson.name}")
-            }
-
             versionCatalogUpdate {
                 keep.keepUnusedVersions.set(true)
-                keep.keepUnusedLibraries.set(true)
-                keep.keepUnusedPlugins.set(true)
             }
             """.trimIndent()
         )
-
-        reportJson.writeText("{}")
 
         val toml = """
             [bundles]
@@ -2111,7 +1249,7 @@ class VersionCatalogUpdatePluginTest {
 
         GradleRunner.create()
             .withProjectDir(tempDir.root)
-            .withArguments("versionCatalogUpdate")
+            .withArguments("versionCatalogUpdate", "-Pnl.littlerobots.vcu.resolver=true")
             .withPluginClasspath()
             .build()
 
@@ -2131,6 +1269,139 @@ class VersionCatalogUpdatePluginTest {
                 [versions]
                 activity = "1.4.0"
                 someVersion = "1.0.0"
+
+            """.trimIndent(),
+            tomlFile.readText()
+        )
+    }
+
+    @Test
+    fun `version selector is invoked`() {
+        val m2 = File(javaClass.getResource("/m2/m2.txt")!!.file).absoluteFile.parent
+
+        buildFile.writeText(
+            """
+            buildscript {
+                repositories {
+                    maven {
+                        url "$m2"
+                    }
+                }
+            }
+            plugins {
+                id "nl.littlerobots.version-catalog-update"
+            }
+
+            versionCatalogUpdate {
+                versionSelector {
+                    it.candidate.version == "1.3.0-alpha01"
+                }
+
+            }
+
+            repositories {
+                maven {
+                    url "$m2"
+                }
+            }
+
+            """.trimIndent()
+        )
+
+        val toml = """
+            [versions]
+            activity = "1.4.0"
+
+            [libraries]
+            test = { module = "androidx.activity:activity-compose", version.ref = "activity" }
+
+        """.trimIndent()
+
+        val tomlFile = File(tempDir.root, "gradle/libs.versions.toml")
+        File(tempDir.root, "gradle").mkdir()
+        tomlFile.writeText(toml)
+
+        GradleRunner.create()
+            .withProjectDir(tempDir.root)
+            .withArguments("versionCatalogUpdate", "-Pnl.littlerobots.vcu.resolver=true")
+            .withPluginClasspath()
+            .build()
+
+        // check that the fixed version is selected
+        assertEquals(
+            """
+                [versions]
+                activity = "1.3.0-alpha01"
+
+                [libraries]
+                test = { module = "androidx.activity:activity-compose", version.ref = "activity" }
+
+            """.trimIndent(),
+            tomlFile.readText()
+        )
+    }
+
+    @Test
+    fun `version selector is invoked for kts`() {
+        val m2 = File(javaClass.getResource("/m2/m2.txt")!!.file).absoluteFile.parent
+        buildFile.delete()
+        val ktsBuildFile = tempDir.newFile("build.gradle.kts")
+        ktsBuildFile.writeText(
+            """
+            import nl.littlerobots.vcu.plugin.versionSelector
+            buildscript {
+                repositories {
+                    maven {
+                        url = uri("$m2")
+                    }
+                }
+            }
+            plugins {
+                id("nl.littlerobots.version-catalog-update")
+            }
+
+            versionCatalogUpdate {
+              versionSelector {
+                it.candidate.version == "1.3.0-alpha01"
+              }
+            }
+
+            repositories {
+                maven {
+                   url = uri("$m2")
+                }
+            }
+
+            """.trimIndent()
+        )
+
+        val toml = """
+            [versions]
+            activity = "1.4.0"
+
+            [libraries]
+            test = { module = "androidx.activity:activity-compose", version.ref = "activity" }
+
+        """.trimIndent()
+
+        val tomlFile = File(tempDir.root, "gradle/libs.versions.toml")
+        File(tempDir.root, "gradle").mkdir()
+        tomlFile.writeText(toml)
+
+        GradleRunner.create()
+            .withProjectDir(tempDir.root)
+            .withArguments("versionCatalogUpdate", "-Pnl.littlerobots.vcu.resolver=true")
+            .withPluginClasspath()
+            .build()
+
+        // check that the fixed version is selected
+        assertEquals(
+            """
+                [versions]
+                activity = "1.3.0-alpha01"
+
+                [libraries]
+                test = { module = "androidx.activity:activity-compose", version.ref = "activity" }
 
             """.trimIndent(),
             tomlFile.readText()

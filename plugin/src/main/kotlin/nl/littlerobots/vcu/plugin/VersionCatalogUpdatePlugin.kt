@@ -15,20 +15,15 @@
 */
 package nl.littlerobots.vcu.plugin
 
-import nl.littlerobots.vcu.plugin.model.createBuildScriptArtifactProperty
 import nl.littlerobots.vcu.plugin.resolver.VersionSelectors
 import org.gradle.api.GradleException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
-import org.gradle.api.file.RegularFileProperty
 import org.gradle.util.GradleVersion
-import java.io.File
 
 internal const val UPDATE_TASK_NAME = "versionCatalogUpdate"
 internal const val FORMAT_TASK_NAME = "versionCatalogFormat"
 internal const val EXTENSION_NAME = "versionCatalogUpdate"
-private const val DEPENDENCY_UPDATES_TASK_NAME = "dependencyUpdates"
-private const val VERSIONS_PLUGIN_ID = "com.github.ben-manes.versions"
 
 class VersionCatalogUpdatePlugin : Plugin<Project> {
     override fun apply(project: Project) {
@@ -41,7 +36,6 @@ class VersionCatalogUpdatePlugin : Plugin<Project> {
         }
 
         val extension = project.extensions.create(EXTENSION_NAME, VersionCatalogUpdateExtension::class.java)
-        val reportJson = project.objects.fileProperty()
 
         val defaultVersionCatalog = project.objects.newInstance(VersionCatalogConfig::class.java, "")
             .applyDefaultSettings(extension)
@@ -50,34 +44,18 @@ class VersionCatalogUpdatePlugin : Plugin<Project> {
             extension.catalogFile.convention(project.layout.projectDirectory.file("gradle/libs.versions.toml"))
         )
 
-        configureTasks(project, defaultVersionCatalog, reportJson)
+        configureTasks(project, defaultVersionCatalog)
 
         extension.versionCatalogs.all {
-            configureTasks(project, it.applyDefaultSettings(extension), reportJson)
-        }
-
-        project.pluginManager.withPlugin(VERSIONS_PLUGIN_ID) {
-            project.tasks.named(DEPENDENCY_UPDATES_TASK_NAME) {
-                val outputDir = it.property("outputDir") as String
-                val reportFileName = it.property("reportfileName") as String
-                reportJson.set(File(project.file(outputDir), "$reportFileName.json"))
-                it.setProperty("outputFormatter", "json,xml,plain")
-                it.setProperty("checkConstraints", true)
-                it.setProperty("checkBuildEnvironmentConstraints", true)
-            }
+            configureTasks(project, it.applyDefaultSettings(extension))
         }
     }
 
     private fun configureTasks(
         project: Project,
         versionCatalogConfig: VersionCatalogConfig,
-        reportJson: RegularFileProperty
     ) {
-        if (project.findProperty("nl.littlerobots.vcu.resolver") == "true") {
-            configureExperimentalUpdateTask(project, versionCatalogConfig)
-        } else {
-            configureUpdateTask(project, versionCatalogConfig, reportJson)
-        }
+        configureExperimentalUpdateTask(project, versionCatalogConfig)
         configureFormatTask(project, versionCatalogConfig)
         configureApplyTask(project, versionCatalogConfig)
     }
@@ -123,10 +101,9 @@ class VersionCatalogUpdatePlugin : Plugin<Project> {
         val catalogUpdatesTask =
             project.tasks.register(
                 "${UPDATE_TASK_NAME}${versionCatalogConfig.name.capitalize()}",
-                ExperimentalVersionCatalogUpdateTask::class.java
+                VersionCatalogUpdateTask::class.java
             )
-        catalogUpdatesTask.configure {
-            task ->
+        catalogUpdatesTask.configure { task ->
             task.pins.set(
                 project.provider {
                     project.objects.newInstance(
@@ -147,65 +124,9 @@ class VersionCatalogUpdatePlugin : Plugin<Project> {
             task.catalogFile.set(versionCatalogConfig.catalogFile.asFile)
             task.notCompatibleWithConfigurationCache("Uses project")
             task.outputs.upToDateWhen { false }
-            val versionSelector = versionCatalogConfig.versionSelector.orElse(extension.versionSelector).orElse(VersionSelectors.PREFER_STABLE)
+            val versionSelector = versionCatalogConfig.versionSelector.orElse(extension.versionSelector)
+                .orElse(VersionSelectors.PREFER_STABLE)
             task.versionSelector.set(versionSelector)
-        }
-    }
-
-    private fun configureUpdateTask(
-        project: Project,
-        versionCatalogConfig: VersionCatalogConfig,
-        reportJson: RegularFileProperty
-    ) {
-        val catalogUpdatesTask =
-            project.tasks.register(
-                "${UPDATE_TASK_NAME}${versionCatalogConfig.name.capitalize()}",
-                VersionCatalogUpdateTask::class.java
-            )
-
-        catalogUpdatesTask.configure { task ->
-            task.reportJson.set(reportJson)
-            task.pins.set(
-                project.provider {
-                    project.objects.newInstance(
-                        PinsConfigurationInput::class.java,
-                        versionCatalogConfig.pins
-                    )
-                }
-            )
-            task.keep.set(
-                project.provider {
-                    project.objects.newInstance(
-                        KeepConfigurationInput::class.java,
-                        versionCatalogConfig.keep
-                    )
-                }
-            )
-            task.sortByKey.set(versionCatalogConfig.sortByKey)
-            task.catalogFile.set(versionCatalogConfig.catalogFile.asFile)
-            task.buildScriptArtifacts.set(createBuildScriptArtifactProperty(project))
-            task.doLast {
-                it.logger.warn("\nA new experimental resolver for dependencies is available, see https://github.com/littlerobots/version-catalog-update-plugin/pull/125 for more details")
-                it.logger.warn("Please try it out on your project and report any issues you encounter at https://github.com/littlerobots/version-catalog-update-plugin/issues")
-            }
-        }
-
-        project.pluginManager.withPlugin(VERSIONS_PLUGIN_ID) {
-            val dependencyUpdatesTask =
-                project.tasks.named(DEPENDENCY_UPDATES_TASK_NAME)
-            catalogUpdatesTask.configure {
-                it.dependsOn(dependencyUpdatesTask)
-            }
-        }
-
-        project.afterEvaluate {
-            catalogUpdatesTask.configure {
-                if (it.enabled && !it.reportJson.isPresent) {
-                    if (!project.pluginManager.hasPlugin(VERSIONS_PLUGIN_ID)) {
-                        throw IllegalStateException("com.github.ben-manes.versions needs to be applied as a plugin")
-                    }
-                }
-            }
         }
     }
 }
@@ -214,15 +135,17 @@ private fun VersionCatalogConfig.applyDefaultSettings(extension: VersionCatalogU
     sortByKey.convention(extension.sortByKey)
     pins.applyDefaultSettings(extension.pins)
     keep.applyDefaultSettings(extension.keep)
-    keep.keepUnusedLibraries.convention(extension.keep.keepUnusedLibraries)
     keep.keepUnusedVersions.convention(extension.keep.keepUnusedVersions)
-    keep.keepUnusedPlugins.convention(extension.keep.keepUnusedPlugins)
     return this
 }
 
-private fun VersionRefConfiguration.applyDefaultSettings(source: VersionRefConfiguration) {
+private fun PinConfiguration.applyDefaultSettings(source: PinConfiguration) {
     libraries.convention(source.libraries)
     versions.convention(source.versions)
     plugins.convention(source.plugins)
     groups.convention(source.groups)
+}
+
+private fun KeepConfiguration.applyDefaultSettings(source: KeepConfiguration) {
+    versions.convention(source.versions)
 }

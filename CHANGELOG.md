@@ -1,4 +1,46 @@
 # Changelog
+Version 1.0.0
+-------------
+This version no longer uses the dependency versions plugin for resolving versions, but
+is using Gradle APIs to resolve the version catalog dependencies. This option has been
+available behind a flag for a while and is now the default.
+
+This is quite a big change which has a few behavioral changes, but will also result in a more predictable output.
+
+If you do not need the functionality that the dependency versions plugin is providing,
+you can remove the plugin from your build.gradle, as it is no longer required for this plugin.
+
+Some configuration options have changed, please refer to the README for details.
+
+## Resolving dependencies
+Previously, only dependencies that where part of a `depdencies` block would be detected by the
+plugin. This would lead to situations where sometimes entries in the version catalog where not
+updated because these entries weren't used.
+Now _all_ dependencies from the version catalog will be resolved and checked for updates, whether
+they are used or not in the project.
+
+This also means most of the old options to `keep` dependencies are now no longer applicable;
+since the plugin is no longer "checking" what dependencies are used, it can also no longer determine
+which dependencies are not. See the README for updated configuration.
+
+Because the plugin no longer requires dependencies to be used in your project,
+it's also very easy now to have "catalog only" projects. For an example see
+https://github.com/jamesward/kotlin-universe-catalog
+
+## Selecting versions
+Previously the dependency versions plugin and its configuration would determine
+acceptable versions. As of this version the `versionSelector` configuration is used
+to configure this. The default configuration will prefer stable versions, unless the entry
+in the version catalog is already using an unstable version (like alpha, beta, etc.).
+
+## Creating a version catalog
+Because the source of truth is now the version catalog file, there's no way
+anymore to create a new version catalog based on existing dependencies.
+
+## Improvement to version constraints
+When a version constraint is applied to an entry in the version catalog, the plugin
+will now suggest suitable updates if they are available.
+
 Version 0.8.5
 -------------
 * Fix setting version selector for kts build files ([#149](https://github.com/littlerobots/version-catalog-update-plugin/issues/149))

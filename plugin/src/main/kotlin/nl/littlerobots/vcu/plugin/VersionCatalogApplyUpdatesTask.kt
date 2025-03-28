@@ -71,12 +71,12 @@ abstract class VersionCatalogApplyUpdatesTask : DefaultTask() {
             // reconstruct an update from the current catalog + the updates, as if manually edited
             val fullUpdate = catalog.resolveVersions()
                 .copy(versions = emptyMap(), bundles = emptyMap())
-                .updateFrom(updates, purge = false)
+                .updateFrom(updates, pruneVersions = false)
                 // undo any version grouping
                 .resolveVersions()
                 .copy(versions = emptyMap())
 
-            val updatedCatalog = catalog.updateFrom(fullUpdate, addNew = false, purge = false)
+            val updatedCatalog = catalog.updateFrom(fullUpdate, pruneVersions = false)
                 .withKeepUnusedVersions(catalog, keep.orNull?.keepUnusedVersions?.getOrElse(false) ?: false)
                 .withKeptVersions(catalog, keepRefs)
                 .let {
