@@ -1,76 +1,69 @@
-import com.github.jengelman.gradle.plugins.shadow.tasks.ConfigureShadowRelocation
+import com.vanniktech.maven.publish.SonatypeHost
+import com.gradleup.gr8.FilterTransform
 
 plugins {
-    id "org.jetbrains.kotlin.jvm"
     id 'java-gradle-plugin'
-    id "com.vanniktech.maven.publish.base"
-    id 'com.gradle.plugin-publish' version "1.2.1"
-    id 'com.github.johnrengelman.shadow'
+    alias(libs.plugins.kotlin.jvm)
+    alias(libs.plugins.mavenPublish)
+    alias(libs.plugins.gradlePluginPublish)
+    alias(libs.plugins.gr8)
 }
 
-pluginBundle {  // Removed in Gradle 8+
-    website = "https://github.com/littlerobots/version-catalog-update-plugin"
-    vcsUrl = "https://github.com/littlerobots/version-catalog-update-plugin.git"
+group = ext.GROUP
+version = ext.VERSION_NAME
 
-    tags = ['version', 'catalog', 'dependencies', 'versions']
-}
-
-plugins.withId("com.vanniktech.maven.publish.base") {
-    group = ext.GROUP
-    version = ext.VERSION_NAME
-    mavenPublishing {
-        publishToMavenCentral("DEFAULT")
-        signAllPublications()
-        pomFromGradleProperties()
-    }
+mavenPublishing {
+    publishToMavenCentral SonatypeHost.CENTRAL_PORTAL
+    signAllPublications()
+    pomFromGradleProperties()
 }
 
 gradlePlugin {
-
     plugins {
-        versionCatalogUpdate {
-            id = 'nl.littlerobots.version-catalog-update'
-            displayName = 'A plugin that updates the version catalog file.'
-            description = 'Provides tasks to format and update the version catalog file with the latest dependency versions.'
-            implementationClass = 'nl.littlerobots.vcu.plugin.VersionCatalogUpdatePlugin'
+        create("versionCatalogUpdate") {
+            id = "nl.littlerobots.version-catalog-update"
+            displayName = "A plugin that updates the version catalog file."
+            description =
+                    "Provides tasks to format and update the version catalog file with the latest dependency versions."
+            implementationClass = "nl.littlerobots.vcu.plugin.VersionCatalogUpdatePlugin"
+            tags = ["version", "catalog", "dependencies", "versions"]
         }
     }
 }
 
-
-task relocateShadowJar(type: ConfigureShadowRelocation) {
-    target = tasks.shadowJar
-}
-
-shadowJar {
-    dependencies {
-        exclude(dependency('org.jetbrains.kotlin:.*'))
+configurations {
+    shadowedDependencies
+    compileOnlyDependencies {
+        attributes {
+            attribute(Usage.USAGE_ATTRIBUTE, project.objects.named(Usage.class, Usage.JAVA_API))
+            // this attribute is needed to filter out some classes, see https://issuetracker.google.com/u/1/issues/380805015
+            attribute(ArtifactTypeDefinition.ARTIFACT_TYPE_ATTRIBUTE, FilterTransform.artifactType)
+        }
     }
-    mergeServiceFiles()
-    // don't relocate these
-    relocate 'nl.littlerobots.vcu', 'nl.littlerobots.vcu'
-    relocate 'kotlin', 'kotlin'
+    compileOnlyDependencies.extendsFrom(compileOnly)
 }
 
-tasks.shadowJar.archiveClassifier.set("")
-tasks.shadowJar.dependsOn tasks.relocateShadowJar
-configurations.api.dependencies.remove dependencies.gradleApi()
-
-repositories {
-    gradlePluginPortal()
-}
-
-// remove all runtime dependencies from publications; which is only the catalog module
 components.java.withVariantsFromConfiguration(configurations.runtimeElements) {
     skip()
 }
 
 dependencies {
-    implementation project(path: ":catalog")
-    //noinspection GradlePackageUpdate
-    shadow "org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.5.31"
-    shadow gradleApi()
-    testImplementation 'junit:junit:4.13.2'
-    testImplementation 'com.github.ben-manes:gradle-versions-plugin:0.40.0'
-    testImplementation(gradleTestKit())
+    shadowedDependencies(project(path: ":catalog"))
+    compileOnly gradleApi()
+    testImplementation libs.junit
+    testImplementation gradleTestKit()
+}
+
+gr8 {
+    def shadowedJar = create("default") {
+        addProgramJarsFrom(configurations.shadowedDependencies)
+        addProgramJarsFrom(tasks.jar)
+        addClassPathJarsFrom(configurations.compileOnlyDependencies)
+        proguardFile("rules.pro")
+        registerFilterTransform(["com.gradleup.gr8.FilterTransform", ".*/impldep/META-INF/versions/.*"])
+        r8Version("8.10.24")
+    }
+    removeGradleApiFromApi()
+    replaceOutgoingJar(shadowedJar)
+    configurations.implementation.extendsFrom(configurations.shadowedDependencies)
 }
