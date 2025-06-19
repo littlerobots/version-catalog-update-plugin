@@ -61,9 +61,14 @@ gr8 {
         addClassPathJarsFrom(configurations.compileOnlyDependencies)
         proguardFile("rules.pro")
         registerFilterTransform(["com.gradleup.gr8.FilterTransform", ".*/impldep/META-INF/versions/.*"])
-        r8Version("8.10.24")
     }
     removeGradleApiFromApi()
     replaceOutgoingJar(shadowedJar)
     configurations.implementation.extendsFrom(configurations.shadowedDependencies)
+}
+
+// hackaround r8 version selection not working as I think it works?
+configurations.named("gr8Default") {
+    it.dependencies.clear()
+    it.dependencies.add(project.dependencies.create("com.android.tools:r8:8.10.24"))
 }
