@@ -1,7 +1,11 @@
 plugins {
-    id "com.diffplug.spotless"
-    id "com.vanniktech.maven.publish"
-    id "org.jetbrains.kotlin.jvm" apply false
+    alias(libs.plugins.spotless)
+    alias(libs.plugins.mavenPublish) apply false
+    alias(libs.plugins.gradlePluginPublish) apply false
+    alias(libs.plugins.kotlin.jvm) apply false
+    alias(libs.plugins.versionCatalogUpdate)
+    alias(libs.plugins.shadow) apply false
+    id 'signing'
 }
 
 apply from: 'gradle/spotless.gradle'
@@ -12,14 +16,13 @@ subprojects {
     afterEvaluate {
         tasks.named("compileKotlin") {
             kotlinOptions {
-                jvmTarget = "1.8"
-                languageVersion = "1.4"
+                jvmTarget = "11"
             }
         }
 
         java {
-            sourceCompatibility = JavaVersion.VERSION_1_8
-            targetCompatibility = JavaVersion.VERSION_1_8
+            sourceCompatibility = JavaVersion.VERSION_11
+            targetCompatibility = JavaVersion.VERSION_11
         }
 
         signing {
