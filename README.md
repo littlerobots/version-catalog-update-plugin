@@ -43,6 +43,9 @@ plugins {
 
 When using the plugins block, the classpath dependency is `nl.littlerobots.vcu:plugin:<version>`
 
+## Defining repositories
+The plugin needs to be able to resolve the dependencies of your project. This means that you'll have to configure repositories for the root project and not just for your subproject(s). If dependencies cannot be resolved, the plugin will tell you. The easiest way to do declare repositories for your project is to [declare your dependencies in settings.gradle](https://docs.gradle.org/current/userguide/centralizing_repositories.html). Also note that plugins will be resolved using the repositories declared in [pluginManagement configuration](pluginManagement).
+
 ## Upgrading
 Earlier versions of this plugin used the  [versions plugin](https://github.com/ben-manes/gradle-versions-plugin) to resolve
 dependencies. This plugin is no longer required and version selection is configured using the `versionSelector` option.
