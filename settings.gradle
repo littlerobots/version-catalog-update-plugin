@@ -11,7 +11,13 @@ dependencyResolutionManagement {
     repositories {
         mavenCentral()
         google()
-        maven { url "https://storage.googleapis.com/r8-releases/raw/"}
+        maven {
+            url "https://storage.googleapis.com/r8-releases/raw/"
+            content {
+                // Include only artifacts from the 'com.android.tools' group
+                includeGroup("com.android.tools")
+            }
+        }
     }
 }
 
