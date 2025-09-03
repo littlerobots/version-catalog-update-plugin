@@ -36,9 +36,7 @@ kotlin {
 
 tasks.named('shadowJar', com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar) {
     mergeServiceFiles()
-//    relocate 'kotlin', 'internal.kotlin'
-    relocate 'com.fasterxml.jackson', "internal.com.fasterxml.jackson"
-    relocate 'org.jetbrains', 'shadow.org.jetbrains'
+    relocate 'com.fasterxml.jackson', "shadow.com.fasterxml.jackson"
     archiveClassifier.set("")
 }
 

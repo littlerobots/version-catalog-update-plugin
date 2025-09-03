@@ -2,8 +2,16 @@ plugins {
     alias(libs.plugins.kotlin.jvm)
 }
 
+kotlin {
+    jvmToolchain(11)
+}
+
 dependencies {
-    implementation libs.jackson.dataformat.toml
-    implementation libs.kotlin.stdlib
+    implementation(libs.jackson.dataformat.toml) {
+        exclude(group: "org.jetbrains.kotlin:kotlin-stdlib")
+        exclude(group: "org.jetbrains.kotlin:kotlin-stdlib-jdk8")
+    }
+    compileOnly libs.kotlin.stdlib
+    testImplementation libs.kotlin.stdlib
     testImplementation libs.junit
 }
