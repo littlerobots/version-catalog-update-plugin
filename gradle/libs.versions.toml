@@ -1,0 +1,15 @@
+[versions]
+kotlin = "2.1.21"
+
+[libraries]
+jackson-dataformat-toml = "com.fasterxml.jackson.dataformat:jackson-dataformat-toml:2.15.0-rc1"
+junit = "junit:junit:4.13.2"
+kotlin-stdlib = { module = "org.jetbrains.kotlin:kotlin-stdlib-jdk8", version.ref = "kotlin" }
+
+[plugins]
+gradlePluginPublish = "com.gradle.plugin-publish:1.2.1"
+kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+mavenPublish = "com.vanniktech.maven.publish.base:0.28.0"
+shadow = "com.gradleup.shadow:9.1.0"
+spotless = "com.diffplug.spotless:5.17.1"
+versionCatalogUpdate = "nl.littlerobots.version-catalog-update:1.0.0"
