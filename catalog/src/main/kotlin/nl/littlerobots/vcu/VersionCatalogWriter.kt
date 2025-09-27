@@ -184,7 +184,7 @@ class VersionCatalogWriter {
             StringBuilder("""{ module = "${library.module}", version = { """).apply {
                 val conditions = library.version.definition
                 for (condition in conditions) {
-                    append("${condition.key} = \"${condition.value}\", ")
+                    append("${condition.key} = ${condition.value.formatValue()}, ")
                 }
                 setLength(length - 2)
                 append(" } }")
@@ -198,10 +198,17 @@ class VersionCatalogWriter {
         is VersionDefinition.Simple -> "\"${versionDefinition.version}\""
         is VersionDefinition.Condition -> {
             versionDefinition.definition.entries.joinToString(prefix = "{ ", postfix = " }", separator = ", ") {
-                "${it.key} = \"${it.value}\""
+                "${it.key} = ${it.value.formatValue()}"
             }
         }
 
         else -> throw IllegalStateException("Invalid version definition $versionDefinition")
+    }
+
+    private fun Any.formatValue(): String {
+        return when (this) {
+            is List<*> -> joinToString(", ", prefix = "[", postfix = "]") { "\"${it}\"" }
+            else -> "\"${this}\""
+        }
     }
 }

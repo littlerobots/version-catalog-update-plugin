@@ -24,6 +24,7 @@ import nl.littlerobots.vcu.toml.TABLE_PLUGINS
 import nl.littlerobots.vcu.toml.TABLE_VERSIONS
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class VersionCatalogParserTest {
@@ -326,5 +327,22 @@ class VersionCatalogParserTest {
         val parser = VersionCatalogParser()
         val result = parser.parse(toml.byteInputStream())
         assertEquals(listOf(TABLE_LIBRARIES, TABLE_VERSIONS, TABLE_BUNDLES, TABLE_PLUGINS), result.tableOrder)
+    }
+
+    @Test
+    fun `handles reject version condition`() {
+        val toml = """
+            [versions]
+            arrow = { require = "1.1.2", reject = ["1.1.3"] }
+            [libraries]
+            lib = { module = "nl.littlerobots.test:test", version = { reject = ["1.2", "1.3"] } }
+        """.trimIndent()
+
+        val parser = VersionCatalogParser()
+        val result = parser.parse(toml.byteInputStream())
+        assertEquals(1, result.libraries.size)
+        assertEquals(1, result.versions.size)
+        assertTrue(result.versions.values.first() is VersionDefinition.Condition)
+        assertTrue(result.libraries.values.first().version is VersionDefinition.Condition)
     }
 }

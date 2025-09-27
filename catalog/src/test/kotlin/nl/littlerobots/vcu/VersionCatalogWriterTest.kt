@@ -331,4 +331,34 @@ class VersionCatalogWriterTest {
             writer.toString()
         )
     }
+
+    // https://github.com/littlerobots/version-catalog-update-plugin/issues/177
+    @Test
+    fun `writes reject version condition`() {
+        val catalogWriter = VersionCatalogWriter()
+        val writer = StringWriter()
+
+        val toml = """
+            [versions]
+            myversion = { reject = ["1.0","2.0"] }
+
+            [libraries]
+            lib = { module = "nl.littlerobots.test:test", version = { reject = ["1.0"] } }
+        """.trimIndent()
+
+        val catalog = VersionCatalogParser().parse(toml.byteInputStream())
+        catalogWriter.write(catalog, writer)
+
+        assertEquals(
+            """
+                [versions]
+                myversion = { reject = ["1.0", "2.0"] }
+
+                [libraries]
+                lib = { module = "nl.littlerobots.test:test", version = { reject = ["1.0"] } }
+
+            """.trimIndent(),
+            writer.toString()
+        )
+    }
 }
