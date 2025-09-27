@@ -291,17 +291,18 @@ internal class DependencyResolver {
     }
 
     private fun configureConstraint(constraint: DependencyConstraint, richVersion: VersionDefinition.Condition) {
-        val require = richVersion.definition["require"]
-        val reject = richVersion.definition["reject"]
-        val strictly = richVersion.definition["strictly"]
-        val prefer = richVersion.definition["prefer"]
-        val rejectAll = richVersion.definition["rejectAll"]?.toBoolean() ?: false
+        val require = richVersion.definition["require"] as? String
+        @Suppress("UNCHECKED_CAST")
+        val reject = richVersion.definition["reject"] as? List<String>
+        val strictly = richVersion.definition["strictly"] as? String
+        val prefer = richVersion.definition["prefer"] as? String
+        val rejectAll = (richVersion.definition["rejectAll"] as? String)?.toBoolean() ?: false
         constraint.version { version ->
             require?.let {
                 version.require(it)
             }
             reject?.let {
-                version.reject(it)
+                version.reject(*it.toTypedArray())
             }
             strictly?.let {
                 version.strictly(it)

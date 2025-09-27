@@ -175,7 +175,7 @@ private fun Map<String, Any>.toVersionDefinitionMap(): Map<String, VersionDefini
 private fun Any.toDependencyVersion(): VersionDefinition? = when (this) {
     is String -> VersionDefinition.Simple(this)
     is Map<*, *> -> {
-        val stringMap = this as? Map<String, String> ?: throw IllegalStateException("Expected string map")
+        val stringMap = this as? Map<String, Any> ?: throw IllegalStateException("Expected string map")
         if (size == 1 && stringMap.containsKey("ref")) {
             VersionDefinition.Reference(stringMap["ref"] as String)
         } else {
