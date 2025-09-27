@@ -1,4 +1,8 @@
 # Changelog
+Version 1.0.1
+-------------
+* Fix handling of version conditions using `reject` ([#177](https://github.com/littlerobots/version-catalog-update-plugin/issues/177))
+
 Version 1.0.0
 -------------
 This version no longer uses the dependency versions plugin for resolving versions, but
@@ -13,7 +17,7 @@ you can remove the plugin from your build.gradle, as it is no longer required fo
 Some configuration options have changed, please refer to the README for details.
 
 ## Resolving dependencies
-Previously, only dependencies that where part of a `depdencies` block would be detected by the
+Previously, only dependencies that where part of a `dependencies` block would be detected by the
 plugin. This would lead to situations where sometimes entries in the version catalog where not
 updated because these entries weren't used.
 Now _all_ dependencies from the version catalog will be resolved and checked for updates, whether
