@@ -16,6 +16,9 @@ mavenPublishing {
 }
 
 gradlePlugin {
+    website = "https://github.com/littlerobots/version-catalog-update-plugin"
+    vcsUrl = "https://github.com/littlerobots/version-catalog-update-plugin.git"
+
     plugins {
         create("versionCatalogUpdate") {
             id = "nl.littlerobots.version-catalog-update"
