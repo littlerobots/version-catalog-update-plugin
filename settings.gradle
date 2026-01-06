@@ -7,11 +7,15 @@ pluginManagement {
     }
 }
 
+plugins {
+    id 'org.gradle.toolchains.foojay-resolver-convention' version '1.0.0'
+}
+
 dependencyResolutionManagement {
     repositories {
         mavenCentral()
         google()
-        maven { url "https://storage.googleapis.com/r8-releases/raw/"}
+        maven { url = uri("https://storage.googleapis.com/r8-releases/raw/") }
     }
 }
 

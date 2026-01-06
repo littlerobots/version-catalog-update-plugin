@@ -15,14 +15,14 @@ subprojects {
 
     afterEvaluate {
         tasks.named("compileKotlin") {
-            kotlinOptions {
-                jvmTarget = "11"
+            compilerOptions {
+                jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
             }
         }
 
         java {
-            sourceCompatibility = JavaVersion.VERSION_11
-            targetCompatibility = JavaVersion.VERSION_11
+            sourceCompatibility = JavaVersion.VERSION_17
+            targetCompatibility = JavaVersion.VERSION_17
         }
 
         signing {

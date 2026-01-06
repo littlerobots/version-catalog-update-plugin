@@ -11,5 +11,5 @@ gradlePluginPublish = "com.gradle.plugin-publish:2.0.0"
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 mavenPublish = "com.vanniktech.maven.publish.base:0.34.0"
 shadow = "com.gradleup.shadow:9.1.0"
-spotless = "com.diffplug.spotless:5.17.1"
+spotless = "com.diffplug.spotless:7.0.4"
 versionCatalogUpdate = "nl.littlerobots.version-catalog-update:1.0.0"

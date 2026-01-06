@@ -1,0 +1,93 @@
+{
+  "current": {
+    "dependencies": [
+      {
+        "group": "com.github.ben-manes.versions",
+        "userReason": null,
+        "version": "0.39.0",
+        "projectUrl": null,
+        "name": "com.github.ben-manes.versions.gradle.plugin"
+      },
+      {
+        "group": "junit",
+        "userReason": null,
+        "version": "4.13.2",
+        "projectUrl": "http://junit.org",
+        "name": "junit"
+      }
+    ],
+    "count": 2
+  },
+  "gradle": {
+    "current": {
+      "version": "7.2",
+      "reason": "",
+      "isUpdateAvailable": true,
+      "isFailure": false
+    },
+    "nightly": {
+      "version": "",
+      "reason": "update check disabled",
+      "isUpdateAvailable": false,
+      "isFailure": false
+    },
+    "enabled": true,
+    "releaseCandidate": {
+      "version": "7.3-rc-2",
+      "reason": "",
+      "isUpdateAvailable": true,
+      "isFailure": false
+    },
+    "running": {
+      "version": "7.1",
+      "reason": "",
+      "isUpdateAvailable": false,
+      "isFailure": false
+    }
+  },
+  "exceeded": {
+    "dependencies": [
+    ],
+    "count": 0
+  },
+  "outdated": {
+    "dependencies": [
+      {
+        "group": "org.jetbrains.kotlin",
+        "available": {
+          "release": null,
+          "milestone": "1.6.0-RC",
+          "integration": null
+        },
+        "userReason": null,
+        "version": "1.5.30",
+        "projectUrl": "https://kotlinlang.org/",
+        "name": "kotlin-scripting-compiler-embeddable"
+      },
+      {
+        "group": "org.jetbrains.kotlin.jvm",
+        "available": {
+          "release": null,
+          "milestone": "1.6.0-RC",
+          "integration": null
+        },
+        "userReason": null,
+        "version": "1.5.30",
+        "projectUrl": null,
+        "name": "org.jetbrains.kotlin.jvm.gradle.plugin"
+      }
+    ],
+    "count": 2
+  },
+  "unresolved": {
+    "dependencies": [
+    ],
+    "count": 0
+  },
+  "undeclared": {
+    "dependencies": [
+    ],
+    "count": 0
+  },
+  "count": 4
+}

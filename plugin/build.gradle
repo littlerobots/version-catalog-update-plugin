@@ -11,7 +11,9 @@ version = ext.VERSION_NAME
 
 mavenPublishing {
     publishToMavenCentral(true)
-    signAllPublications()
+    if (!project.hasProperty('skipSigning')) {
+        signAllPublications()
+    }
     pomFromGradleProperties()
 }
 
@@ -32,7 +34,7 @@ gradlePlugin {
 }
 
 kotlin {
-    jvmToolchain(11)
+    jvmToolchain(17)
 }
 
 tasks.named('shadowJar', com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar) {
