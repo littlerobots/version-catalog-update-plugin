@@ -2,7 +2,7 @@
 Version 1.1.0
 -------------
 * Fix adding dependencies that are contributed through build scripts ([#179](https://github.com/littlerobots/version-catalog-update-plugin/issues/179))
-* Add a [new option](https://github.com/littlerobots/version-catalog-update-plugin?tab=readme-ov-file#checking-for-updates) to the `versionCatalogUpdate` task that will fail the build if there are updates for any dependency or specific dependencies. ([#177](https://github.com/littlerobots/version-catalog-update-plugin/issues/168))
+* Add a [new option](https://github.com/littlerobots/version-catalog-update-plugin?tab=readme-ov-file#checking-for-updates) to the `versionCatalogUpdate` task that will fail the build if there are updates for any dependency or specific dependencies. ([#168](https://github.com/littlerobots/version-catalog-update-plugin/issues/168))
 
 Version 1.0.1
 -------------
