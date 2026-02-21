@@ -1513,12 +1513,24 @@ class VersionCatalogUpdatePluginTest {
         File(tempDir.root, "gradle").mkdir()
         tomlFile.writeText(toml)
 
-        GradleRunner.create()
+        val result = GradleRunner.create()
             .withProjectDir(tempDir.root)
             .withArguments("versionCatalogUpdate", "--check")
             .withPluginClasspath()
             .withDebug(true)
             .build()
+
+        assertTrue(
+            result.output.contains(
+                """
+            There are updates available for pinned libraries in the version catalog:
+             - androidx.activity:activity-compose (test) 1.4.0 -> 1.9.2
+            There are updates available for pinned plugins in the version catalog:
+             - com.android.library (android-library) 8.7.0 -> 8.7.1
+
+                """.trimIndent()
+            )
+        )
     }
 
     @Test
