@@ -158,6 +158,23 @@ be lost due to parsing the toml file and rewriting it.
 To format the existing `libs.versions.toml` file without updating library versions, you can run `./gradlew versionCatalogFormat`.
 This comes in handy when you added an entry to the version catalog, but aren't ready yet to update any dependencies.
 
+### Checking for updates
+To check for updates to the catalog, failing the build if there are any, use the `--check` flag like so:
+
+```
+./gradlew versionCatalogUpdate --check
+```
+Note that updates to pinned libraries will not fail the build.
+
+To only check updates for a particular library or plugin add the `--library` or `--plugin` flag like so:
+
+```
+./gradlew versionCatalogUpdate --check --library my-library-toml-key
+./gradlew versionCatalogUpdate --check --plugin my-plugin-toml-key
+```
+
+The `--library` and `--plugin` flags can be used multiple times to check updates for multiple libraries or plugins.
+
 ## Informational output
 In some cases the plugin will output some additional messages when checking for updates.
 

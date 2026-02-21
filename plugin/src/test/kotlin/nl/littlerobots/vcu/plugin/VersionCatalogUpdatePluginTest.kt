@@ -1407,4 +1407,247 @@ class VersionCatalogUpdatePluginTest {
             tomlFile.readText()
         )
     }
+
+    @Test
+    fun `fails the build when there are updates`() {
+        val m2 = File(javaClass.getResource("/m2/m2.txt")!!.file).absoluteFile.parent
+
+        buildFile.writeText(
+            """
+            buildscript {
+                repositories {
+                    maven {
+                       url = uri("$m2")
+                    }
+                }
+            }
+
+            plugins {
+                id "nl.littlerobots.version-catalog-update"
+            }
+
+            repositories {
+                maven {
+                   url = uri("$m2")
+                }
+            }
+            """.trimIndent()
+        )
+
+        val toml = """
+            [versions]
+            activity-compose = "1.4.0"
+
+            [libraries]
+            test = { module = "androidx.activity:activity-compose", version.ref = "activity-compose" }
+
+            [plugins]
+            android-library = "com.android.library:8.7.0"
+        """.trimIndent()
+
+        val tomlFile = File(tempDir.root, "gradle/libs.versions.toml")
+        File(tempDir.root, "gradle").mkdir()
+        tomlFile.writeText(toml)
+
+        val result = GradleRunner.create()
+            .withProjectDir(tempDir.root)
+            .withArguments("versionCatalogUpdate", "--check")
+            .withPluginClasspath()
+            .withDebug(true)
+            .buildAndFail()
+
+        assertTrue(
+            result.output.contains(
+                """
+            There are libraries that could be updated:
+             - androidx.activity:activity-compose:1.4.0 (test) -> 1.9.2
+
+            There are plugins that could be updated:
+             - com.android.library:8.7.0 (android-library) -> 8.7.1
+
+                """.trimIndent()
+            )
+        )
+    }
+
+    @Test
+    fun `fails the build when there are updates unless pinned`() {
+        val m2 = File(javaClass.getResource("/m2/m2.txt")!!.file).absoluteFile.parent
+
+        buildFile.writeText(
+            """
+            buildscript {
+                repositories {
+                    maven {
+                       url = uri("$m2")
+                    }
+                }
+            }
+
+            plugins {
+                id "nl.littlerobots.version-catalog-update"
+            }
+
+            repositories {
+                maven {
+                   url = uri("$m2")
+                }
+            }
+            """.trimIndent()
+        )
+
+        val toml = """
+            [versions]
+            activity-compose = "1.4.0"
+
+            [libraries]
+            # @pin
+            test = { module = "androidx.activity:activity-compose", version.ref = "activity-compose" }
+
+            [plugins]
+            # @pin
+            android-library = "com.android.library:8.7.0"
+        """.trimIndent()
+
+        val tomlFile = File(tempDir.root, "gradle/libs.versions.toml")
+        File(tempDir.root, "gradle").mkdir()
+        tomlFile.writeText(toml)
+
+        val result = GradleRunner.create()
+            .withProjectDir(tempDir.root)
+            .withArguments("versionCatalogUpdate", "--check")
+            .withPluginClasspath()
+            .withDebug(true)
+            .build()
+
+        assertTrue(
+            result.output.contains(
+                """
+            There are updates available for pinned libraries in the version catalog:
+             - androidx.activity:activity-compose (test) 1.4.0 -> 1.9.2
+            There are updates available for pinned plugins in the version catalog:
+             - com.android.library (android-library) 8.7.0 -> 8.7.1
+
+                """.trimIndent()
+            )
+        )
+    }
+
+    @Test
+    fun `fails the build when a specified library is out of date`() {
+        val m2 = File(javaClass.getResource("/m2/m2.txt")!!.file).absoluteFile.parent
+
+        buildFile.writeText(
+            """
+            buildscript {
+                repositories {
+                    maven {
+                       url = uri("$m2")
+                    }
+                }
+            }
+
+            plugins {
+                id "nl.littlerobots.version-catalog-update"
+            }
+
+            repositories {
+                maven {
+                   url = uri("$m2")
+                }
+            }
+            """.trimIndent()
+        )
+
+        val toml = """
+            [versions]
+            activity-compose = "1.4.0"
+
+            [libraries]
+            test = { module = "androidx.activity:activity-compose", version.ref = "activity-compose" }
+
+            [plugins]
+            android-library = "com.android.library:8.7.0"
+        """.trimIndent()
+
+        val tomlFile = File(tempDir.root, "gradle/libs.versions.toml")
+        File(tempDir.root, "gradle").mkdir()
+        tomlFile.writeText(toml)
+
+        val result = GradleRunner.create()
+            .withProjectDir(tempDir.root)
+            .withArguments("versionCatalogUpdate", "--check", "--library", "test")
+            .withPluginClasspath()
+            .withDebug(true)
+            .buildAndFail()
+
+        assertTrue(
+            result.output.contains(
+                """
+            There are libraries that could be updated:
+             - androidx.activity:activity-compose:1.4.0 (test) -> 1.9.2
+
+                """.trimIndent()
+            )
+        )
+    }
+
+    @Test
+    fun `fails the build when a specified plugin is out of date`() {
+        val m2 = File(javaClass.getResource("/m2/m2.txt")!!.file).absoluteFile.parent
+
+        buildFile.writeText(
+            """
+            buildscript {
+                repositories {
+                    maven {
+                       url = uri("$m2")
+                    }
+                }
+            }
+
+            plugins {
+                id "nl.littlerobots.version-catalog-update"
+            }
+
+            repositories {
+                maven {
+                   url = uri("$m2")
+                }
+            }
+            """.trimIndent()
+        )
+
+        val toml = """
+            [versions]
+            activity-compose = "1.4.0"
+
+            [libraries]
+            test = { module = "androidx.activity:activity-compose", version.ref = "activity-compose" }
+
+            [plugins]
+            android-library = "com.android.library:8.7.0"
+        """.trimIndent()
+
+        val tomlFile = File(tempDir.root, "gradle/libs.versions.toml")
+        File(tempDir.root, "gradle").mkdir()
+        tomlFile.writeText(toml)
+
+        val result = GradleRunner.create()
+            .withProjectDir(tempDir.root)
+            .withArguments("versionCatalogUpdate", "--check", "--plugin", "android-library")
+            .withPluginClasspath()
+            .withDebug(true)
+            .buildAndFail()
+
+        assertTrue(
+            result.output.contains(
+                """
+            There are plugins that could be updated:
+             - com.android.library:8.7.0 (android-library) -> 8.7.1
+
+                """.trimIndent()
+            )
+        )
+    }
 }

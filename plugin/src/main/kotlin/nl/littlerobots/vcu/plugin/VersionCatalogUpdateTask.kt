@@ -34,6 +34,7 @@ import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
 import org.gradle.api.artifacts.ModuleIdentifier
 import org.gradle.api.provider.Property
+import org.gradle.api.provider.SetProperty
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.Optional
@@ -58,6 +59,18 @@ abstract class VersionCatalogUpdateTask : DefaultTask() {
     )
     @get:Internal
     abstract var interactive: Boolean
+
+    @set:Option(option = "check", description = "Check and fail the build if there are updates")
+    @get:Internal
+    abstract var check: Boolean
+
+    @get:Option(option = "library", description = "Library keys to check for updates")
+    @get:Internal
+    abstract val checkLibraryKeys: SetProperty<String>
+
+    @get:Option(option = "plugin", description = "Plugin keys to check for updates")
+    @get:Internal
+    abstract val checkPluginKeys: SetProperty<String>
 
     @get:Input
     abstract val pins: Property<PinsConfigurationInput>
@@ -154,6 +167,55 @@ abstract class VersionCatalogUpdateTask : DefaultTask() {
                 updatedCatalog,
                 getPinsWithUpdatedVersions(catalogFromDependencies, pins)
             )
+        } else if (check) {
+            val resolvedCurrent = currentCatalog.resolveVersions()
+            val resolvedUpdated = updatedCatalog.resolveVersions()
+            if (resolvedCurrent != resolvedUpdated) {
+                val updatedLibraries = resolvedUpdated.libraries.toMutableMap().apply {
+                    values.removeAll(resolvedCurrent.libraries.values.toSet())
+                }.toMutableMap().apply {
+                    if (checkLibraryKeys.get().isNotEmpty() || checkPluginKeys.get().isNotEmpty()) {
+                        keys.retainAll(checkLibraryKeys.get())
+                    }
+                }
+                val updatedPlugins = resolvedUpdated.plugins.toMutableMap().apply {
+                    values.removeAll(resolvedCurrent.plugins.values.toSet())
+                }.toMutableMap().apply {
+                    if (checkPluginKeys.get().isNotEmpty() || checkLibraryKeys.get().isNotEmpty()) {
+                        keys.retainAll(checkPluginKeys.get())
+                    }
+                }
+
+                if (updatedLibraries.isNotEmpty() ||
+                    updatedPlugins.isNotEmpty()
+                ) {
+
+                    if (updatedLibraries.isNotEmpty()) {
+                        logger.warn("There are libraries that could be updated:")
+                        for (library in updatedLibraries) {
+                            val current = resolvedCurrent.libraries[library.key]
+                            if (current?.version is VersionDefinition.Simple && library.value.version is VersionDefinition.Simple) {
+                                logger.warn(" - ${current.module}:${(current.version as? VersionDefinition.Simple)?.version} (${library.key}) -> ${(library.value.version as VersionDefinition.Simple).version}")
+                            }
+                        }
+                        if (updatedPlugins.isNotEmpty()) {
+                            logger.warn("")
+                        }
+                    }
+
+                    if (updatedPlugins.isNotEmpty()) {
+                        logger.warn("There are plugins that could be updated:")
+                        for (plugin in updatedPlugins) {
+                            val current = resolvedCurrent.plugins[plugin.key]
+                            if (current?.version is VersionDefinition.Simple && plugin.value.version is VersionDefinition.Simple) {
+                                logger.warn(" - ${current.id}:${(current.version as VersionDefinition.Simple).version} (${plugin.key}) -> ${(plugin.value.version as VersionDefinition.Simple).version}")
+                            }
+                        }
+                    }
+
+                    throw GradleException("There are updates available for the version catalog")
+                }
+            }
         } else {
             val writer = VersionCatalogWriter()
             writer.write(updatedCatalog, catalogFile.get().writer())
