@@ -53,15 +53,17 @@ internal class DependencyResolver {
         }
 
         val currentVersions by lazy {
-            currentLibraryConfiguration.resolvedConfiguration.lenientConfiguration.firstLevelModuleDependencies.associate {
-                Dependency(it.module.id) to it.module.id.version
-            } + currentLibraryConfiguration.resolvedConfiguration.lenientConfiguration.unresolvedModuleDependencies.associate {
-                Dependency(it.selector.module) to it.selector.version
-            } + currentPluginConfiguration.resolvedConfiguration.lenientConfiguration.firstLevelModuleDependencies.associate {
-                Dependency(it.module.id) to it.module.id.version
-            } + currentPluginConfiguration.resolvedConfiguration.lenientConfiguration.unresolvedModuleDependencies.associate {
-                Dependency(it.selector.module) to it.selector.version
-            }
+            (
+                currentLibraryConfiguration.resolvedConfiguration.lenientConfiguration.firstLevelModuleDependencies.associate {
+                    Dependency(it.module.id) to it.module.id.version
+                } + currentLibraryConfiguration.resolvedConfiguration.lenientConfiguration.unresolvedModuleDependencies.associate {
+                    Dependency(it.selector.module) to it.selector.version
+                } + currentPluginConfiguration.resolvedConfiguration.lenientConfiguration.firstLevelModuleDependencies.associate {
+                    Dependency(it.module.id) to it.module.id.version
+                } + currentPluginConfiguration.resolvedConfiguration.lenientConfiguration.unresolvedModuleDependencies.associate {
+                    Dependency(it.selector.module) to it.selector.version
+                }
+                ).retainVersionCatalogDependenciesOnly(resolvedCatalog)
         }
 
         var selectorError: Throwable? = null
@@ -73,7 +75,13 @@ internal class DependencyResolver {
                 // This can be caused if the resolved artifact is an alias to a different artifact
                 // Just selecting whatever is presented here _should_ be fine in that case, as the original
                 // artifact passes the version selection first.
-                if (currentVersion != null && !moduleVersionSelector.select(ModuleVersionCandidate(it.candidate, currentVersion))) {
+                if (currentVersion != null && !moduleVersionSelector.select(
+                        ModuleVersionCandidate(
+                                it.candidate,
+                                currentVersion
+                            )
+                    )
+                ) {
                     it.reject("${it.candidate.version} rejected by version selector as an upgrade for version $currentVersion")
                 } else if (currentVersion != null) {
                     acceptedVersions[Dependency(it.candidate.moduleIdentifier)] = it.candidate.version
@@ -145,7 +153,8 @@ internal class DependencyResolver {
         val resolvedCurrentPluginConfiguration = currentPluginConfiguration.resolvedConfiguration.lenientConfiguration
 
         val resolvedLibraries =
-            acceptedVersions.toMap().filterNot { it.key.isPlugin } + resolvedLibraryConfiguration.firstLevelModuleDependencies.associate {
+            acceptedVersions.toMap()
+                .filterNot { it.key.isPlugin } + resolvedLibraryConfiguration.firstLevelModuleDependencies.associate {
                 Dependency(it.module.id.module) to it.module.id.version
             }
 
@@ -156,11 +165,12 @@ internal class DependencyResolver {
                 acceptedVersions[it] == null
             }.associateWith { currentVersions[it] }
         val unresolvedCurrentLibraries =
-            resolvedCurrentLibraryConfiguration.unresolvedModuleDependencies.map { Dependency(it.selector.module) }.filter {
-                currentAcceptedVersions[it] == null
-            }.associateWith {
-                currentVersions[it]
-            }
+            resolvedCurrentLibraryConfiguration.unresolvedModuleDependencies.map { Dependency(it.selector.module) }
+                .filter {
+                    currentAcceptedVersions[it] == null
+                }.associateWith {
+                    currentVersions[it]
+                }
         val resolvedPlugins =
             acceptedVersions.filter { it.key.isPlugin } +
                 resolvedPluginConfiguration.firstLevelModuleDependencies.associate {
@@ -292,6 +302,7 @@ internal class DependencyResolver {
 
     private fun configureConstraint(constraint: DependencyConstraint, richVersion: VersionDefinition.Condition) {
         val require = richVersion.definition["require"] as? String
+
         @Suppress("UNCHECKED_CAST")
         val reject = richVersion.definition["reject"] as? List<String>
         val strictly = richVersion.definition["strictly"] as? String
@@ -337,7 +348,10 @@ private data class Dependency(val group: String, val name: String) {
     constructor(moduleIdentifier: ModuleIdentifier) : this(moduleIdentifier.group, moduleIdentifier.name)
     constructor(moduleIdentifier: ModuleVersionIdentifier) : this(moduleIdentifier.group, moduleIdentifier.name)
     constructor(dependency: ResolvedDependency) : this(dependency.module.id.group, dependency.module.id.name)
-    constructor(dependency: UnresolvedDependency) : this(dependency.selector.module.group, dependency.selector.module.name)
+    constructor(dependency: UnresolvedDependency) : this(
+        dependency.selector.module.group,
+        dependency.selector.module.name
+    )
 
     val module: String
         get() = "$group:$name"
@@ -347,6 +361,21 @@ private data class Dependency(val group: String, val name: String) {
 
     val isPlugin: Boolean
         get() = name.endsWith(".gradle.plugin")
+
+    val pluginId: String
+        get() = if (isPlugin) name.dropLast(".gradle.plugin".length) else error("Not a plugin: $module")
+}
+
+private fun Map<Dependency, String?>.retainVersionCatalogDependenciesOnly(versionCatalog: VersionCatalog): Map<Dependency, String?> {
+    return filter {
+        if (it.key.isPlugin) {
+            val pluginId = it.key.pluginId
+            versionCatalog.plugins.values.any { plugin -> plugin.id == pluginId }
+        } else {
+            val module = it.key.module
+            versionCatalog.libraries.values.any { library -> library.module == module }
+        }
+    }
 }
 
 private val VersionDefinition.richVersion: Boolean
