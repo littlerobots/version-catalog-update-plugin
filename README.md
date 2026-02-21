@@ -1,6 +1,6 @@
 # Version catalog update plugin
 [![gradlePluginPortal](https://img.shields.io/maven-metadata/v/https/plugins.gradle.org/m2/nl/littlerobots/version-catalog-update/nl.littlerobots.version-catalog-update.gradle.plugin/maven-metadata.xml.svg?label=gradlePluginPortal)](https://plugins.gradle.org/plugin/nl.littlerobots.version-catalog-update)
-[![Maven Central](https://img.shields.io/maven-central/v/nl.littlerobots.vcu/plugin)](https://search.maven.org/search?q=g:nl.littlerobots.vcu%20a:plugin)
+[![Maven Central](https://img.shields.io/maven-central/v/nl.littlerobots.vcu/plugin)](https://central.sonatype.com/artifact/nl.littlerobots.version-catalog-update/nl.littlerobots.version-catalog-update.gradle.plugin)
 
 This plugin helps to keep the versions in a Gradle [version catalog toml file](https://docs.gradle.org/current/userguide/platforms.html) up to date.
 
