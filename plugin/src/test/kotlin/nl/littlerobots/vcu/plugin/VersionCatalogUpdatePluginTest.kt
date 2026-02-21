@@ -1576,7 +1576,7 @@ class VersionCatalogUpdatePluginTest {
 
         val result = GradleRunner.create()
             .withProjectDir(tempDir.root)
-            .withArguments("versionCatalogUpdate", "--check", "--libraries", "test")
+            .withArguments("versionCatalogUpdate", "--check", "--library", "test")
             .withPluginClasspath()
             .withDebug(true)
             .buildAndFail()
@@ -1635,7 +1635,7 @@ class VersionCatalogUpdatePluginTest {
 
         val result = GradleRunner.create()
             .withProjectDir(tempDir.root)
-            .withArguments("versionCatalogUpdate", "--check", "--plugins", "android-library")
+            .withArguments("versionCatalogUpdate", "--check", "--plugin", "android-library")
             .withPluginClasspath()
             .withDebug(true)
             .buildAndFail()

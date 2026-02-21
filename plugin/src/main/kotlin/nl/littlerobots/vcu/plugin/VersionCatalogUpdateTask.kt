@@ -64,11 +64,11 @@ abstract class VersionCatalogUpdateTask : DefaultTask() {
     @get:Internal
     abstract var check: Boolean
 
-    @get:Option(option = "libraries", description = "Library keys to check for updates")
+    @get:Option(option = "library", description = "Library keys to check for updates")
     @get:Internal
     abstract val checkLibraryKeys: SetProperty<String>
 
-    @get:Option(option = "plugins", description = "Plugin keys to check for updates")
+    @get:Option(option = "plugin", description = "Plugin keys to check for updates")
     @get:Internal
     abstract val checkPluginKeys: SetProperty<String>
 
