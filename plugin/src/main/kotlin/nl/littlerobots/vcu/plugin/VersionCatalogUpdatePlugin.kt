@@ -93,6 +93,7 @@ class VersionCatalogUpdatePlugin : Plugin<Project> {
                 }
             )
             task.catalogFile.set(versionCatalogConfig.catalogFile)
+            task.outputs.file(versionCatalogConfig.catalogFile.asFile)
         }
     }
 
