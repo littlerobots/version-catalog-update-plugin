@@ -1,4 +1,8 @@
 # Changelog
+Version 1.1.1
+-----
+* Added output file for the format task so that it is now correctly cachable ([#183](https://github.com/littlerobots/version-catalog-update-plugin/issues/183))
+
 Version 1.1.0
 -------------
 * Fix adding dependencies that are contributed through build scripts ([#179](https://github.com/littlerobots/version-catalog-update-plugin/issues/179))
