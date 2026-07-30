@@ -791,6 +791,68 @@ class VersionCatalogUpdatePluginTest {
     }
 
     @Test
+    fun `keeps versions annotated with noinspection UnusedVersionCatalogEntry in toml file`() {
+        buildFile.writeText(
+            """
+            plugins {
+                id "nl.littlerobots.version-catalog-update"
+            }
+
+            versionCatalogUpdate {
+                keep {
+                    keepUnusedVersions = false
+                }
+            }
+
+            """.trimIndent()
+        )
+
+        val toml = """
+            [versions]
+            #noinspection UnusedVersionCatalogEntry
+            bbb = "1.2.3"
+            aaa = "4.5.6"
+
+            [libraries]
+            aaa = "some:library:2.0"
+
+            # plugins table comment
+            [plugins]
+            aaa = "another.id:1.0.0"
+
+        """.trimIndent()
+
+        File(tempDir.root, "gradle").mkdir()
+        File(tempDir.root, "gradle/libs.versions.toml").writeText(toml)
+
+        GradleRunner.create()
+            .withProjectDir(tempDir.root)
+            .withArguments("versionCatalogUpdate", "-Pnl.littlerobots.vcu.resolver=true")
+            .withDebug(true)
+            .withPluginClasspath()
+            .build()
+
+        val libs = File(tempDir.root, "gradle/libs.versions.toml").readText()
+
+        assertEquals(
+            """
+               [versions]
+               #noinspection UnusedVersionCatalogEntry
+               bbb = "1.2.3"
+
+               [libraries]
+               aaa = "some:library:2.0"
+
+               # plugins table comment
+               [plugins]
+               aaa = "another.id:1.0.0"
+
+            """.trimIndent(),
+            libs
+        )
+    }
+
+    @Test
     fun `pins annotated entries in toml file`() {
         val m2 = File(javaClass.getResource("/m2/m2.txt")!!.file).absoluteFile.parent
 
@@ -855,6 +917,78 @@ class VersionCatalogUpdatePluginTest {
 
                 [plugins]
                 # @pin
+                android-library = "com.android.library:8.7.0"
+
+            """.trimIndent(),
+            libs
+        )
+    }
+
+    @Test
+    fun `pins entries annotated with noinspection NewerVersionAvailable in toml file`() {
+        val m2 = File(javaClass.getResource("/m2/m2.txt")!!.file).absoluteFile.parent
+
+        buildFile.writeText(
+            """
+            buildscript {
+                repositories {
+                    maven {
+                        url "$m2"
+                    }
+                }
+            }
+            plugins {
+                id "nl.littlerobots.version-catalog-update"
+            }
+
+            repositories {
+                maven {
+                    url "$m2"
+                }
+            }
+
+            """.trimIndent()
+        )
+
+        val toml = """
+            [versions]
+            #noinspection NewerVersionAvailable
+            activity-compose = "1.4.0"
+
+            [libraries]
+            #noinspection NewerVersionAvailable
+            activity-compose = {module = "androidx.activity:activity-compose", version.ref = "activity-compose"}
+
+            [plugins]
+            #noinspection NewerVersionAvailable
+            android-library = "com.android.library:8.7.0"
+
+        """.trimIndent()
+
+        File(tempDir.root, "gradle").mkdir()
+        File(tempDir.root, "gradle/libs.versions.toml").writeText(toml)
+
+        GradleRunner.create()
+            .withProjectDir(tempDir.root)
+            .withArguments("versionCatalogUpdate", "-Pnl.littlerobots.vcu.resolver=true")
+            .withDebug(true)
+            .withPluginClasspath()
+            .build()
+
+        val libs = File(tempDir.root, "gradle/libs.versions.toml").readText()
+
+        assertEquals(
+            """
+                [versions]
+                #noinspection NewerVersionAvailable
+                activity-compose = "1.4.0"
+
+                [libraries]
+                #noinspection NewerVersionAvailable
+                activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activity-compose" }
+
+                [plugins]
+                #noinspection NewerVersionAvailable
                 android-library = "com.android.library:8.7.0"
 
             """.trimIndent(),
