@@ -367,14 +367,9 @@ private data class Dependency(val group: String, val name: String) {
 }
 
 private fun Map<Dependency, String?>.retainVersionCatalogDependenciesOnly(versionCatalog: VersionCatalog): Map<Dependency, String?> {
-    return filter {
-        if (it.key.isPlugin) {
-            val pluginId = it.key.pluginId
-            versionCatalog.plugins.values.any { plugin -> plugin.id == pluginId }
-        } else {
-            val module = it.key.module
-            versionCatalog.libraries.values.any { library -> library.module == module }
-        }
+    return filter { entry ->
+        val module = entry.key.module
+        versionCatalog.libraries.values.any { library -> library.module == module } || (entry.key.isPlugin && versionCatalog.plugins.values.any { plugin -> plugin.id == entry.key.pluginId })
     }
 }
 

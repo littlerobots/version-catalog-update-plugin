@@ -234,6 +234,44 @@ class DependencyResolverTest {
         assertEquals("1.6.0-beta03", (result.versionCatalog.libraries.values.first().version as? VersionDefinition.Simple)?.version)
     }
 
+    @Test
+    fun `Calls version selector for libraries referencing a plugin marker`() {
+        val project = ProjectBuilder.builder().withName("test").build()
+        val resolver = DependencyResolver()
+        val catalog = VersionCatalogParser().parse(
+            """
+           [libraries]
+           compose-foundation = "com.android.library:com.android.library.gradle.plugin:8.7.0"
+
+            """.trimIndent().asStream()
+        )
+
+        project.repositories.add(project.repositories.google())
+
+        var didCallSelector = false
+
+        val result = resolver.resolveFromCatalog(
+            project.configurations.detachedConfiguration(),
+            project.configurations.detachedConfiguration(),
+            project.buildscript.configurations.detachedConfiguration(),
+            project.buildscript.configurations.detachedConfiguration(),
+            project.dependencies,
+            catalog,
+            object : ModuleVersionSelector {
+                override fun select(candidate: ModuleVersionCandidate): Boolean {
+                    didCallSelector = true
+                    return candidate.candidate.version == "8.7.0"
+                }
+            }
+        )
+
+        assertTrue(result.versionCatalog.libraries.isNotEmpty())
+        assertTrue(result.unresolved.libraries.isEmpty())
+        assertTrue(result.exceeded.libraries.isEmpty())
+        assertTrue(didCallSelector)
+        assertEquals("8.7.0", (result.versionCatalog.libraries.values.first().version as? VersionDefinition.Simple)?.version)
+    }
+
     private fun String.asStream(): ByteArrayInputStream {
         return ByteArrayInputStream(toByteArray())
     }
