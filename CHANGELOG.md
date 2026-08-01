@@ -3,6 +3,7 @@ Version 1.1.1
 -----
 * Added output file for the format task so that it is now correctly cachable ([#183](https://github.com/littlerobots/version-catalog-update-plugin/issues/183))
 * Added support for IntelliJ style `#noinspection` comments as an alternative to `#@keep` and `#@pin` ([#194](https://github.com/littlerobots/version-catalog-update-plugin/issues/194))
+* If a library coordinate is a Gradle plugin descriptor, it will not be filtered out anymore ([#195](https://github.com/littlerobots/version-catalog-update-plugin/issues/195))
 
 Version 1.1.0
 -------------
