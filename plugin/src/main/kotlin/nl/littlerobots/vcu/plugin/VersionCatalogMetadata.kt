@@ -23,11 +23,11 @@ private val PIN_REGEX = Regex("#\\s?(?:@pin|@pinned)(?:\$|\\s.*)")
 private val KEEP_REGEX = Regex("#\\s?@keep(?:\$|\\s.*)")
 
 internal fun Comments.getPinnedKeys(): Set<String> {
-    return getMatchingKeys(PIN_REGEX)
+    return getMatchingKeys(PIN_REGEX) + getMatchingInspection("NewerVersionAvailable")
 }
 
 internal fun Comments.getKeptKeys(): Set<String> {
-    return getMatchingKeys(KEEP_REGEX)
+    return getMatchingKeys(KEEP_REGEX) + getMatchingInspection("UnusedVersionCatalogEntry")
 }
 
 internal fun getPinnedRefsFromComments(currentCatalog: VersionCatalog): Set<VersionCatalogRef> {
@@ -62,10 +62,18 @@ private fun getRefsFromComments(
     }.toSet()
 }
 
+private fun Comments.getMatchingInspection(inspection: String): Set<String> {
+    val regex = Regex("^#noinspection\\s+$inspection(?:$|\\s.*)")
+    return entryComments.filter {
+        it.value.any { comment ->
+            comment.matches(regex)
+        }
+    }.map { it.key }.toSet()
+}
+
 private fun Comments.getMatchingKeys(regex: Regex): Set<String> {
     return entryComments.filter {
-        it.value.any {
-            comment ->
+        it.value.any { comment ->
             comment.matches(regex)
         }
     }.map {

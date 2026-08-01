@@ -300,15 +300,19 @@ versionCatalogUpdate {
 ### Keeping and pinning entries with a TOML comment
 To keep an entry in the TOML file, or pin it to a specific version you can also use annotations in TOML comments.
 This functions in the same way as specifying the `keep` and `pin` configuration in the build file.
-For a `@keep` or `@pin` annotation to be recognised, the comment must start with a single `#`.
+For a `@keep` or `@pin` annotation to be recognized, the comment must start with a single `#`.
 
 ```toml
 [versions]
 # @keep this version, for example because it is not used in a dependency declaration
+#noinspection UnusedVersionCatalogEntry also works
 minSdk = "21"
 # Pinning the version will keep every library using this version on 1.6.10
 # @pin
 kotlin = "1.6.10"
+# This also works where @pin works
+#noinspection NewerVersionAvailable
+specific-version = "1.0.2"
 
 [libraries]
 # @pin this library to version 1.0
