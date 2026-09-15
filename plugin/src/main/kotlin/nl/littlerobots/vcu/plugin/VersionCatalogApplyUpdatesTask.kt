@@ -40,6 +40,10 @@ abstract class VersionCatalogApplyUpdatesTask : DefaultTask() {
     @get:Optional
     abstract val sortByKey: Property<Boolean>
 
+    @get:Input
+    @get:Optional
+    abstract val groupVersionRefs: Property<Boolean>
+
     @get:Internal
     abstract val keep: Property<KeepConfigurationInput>
 
@@ -71,12 +75,12 @@ abstract class VersionCatalogApplyUpdatesTask : DefaultTask() {
             // reconstruct an update from the current catalog + the updates, as if manually edited
             val fullUpdate = catalog.resolveVersions()
                 .copy(versions = emptyMap(), bundles = emptyMap())
-                .updateFrom(updates, pruneVersions = false)
+                .updateFrom(updates, pruneVersions = false, groupVersionRefs = groupVersionRefs.getOrElse(true))
                 // undo any version grouping
                 .resolveVersions()
                 .copy(versions = emptyMap())
 
-            val updatedCatalog = catalog.updateFrom(fullUpdate, pruneVersions = false)
+            val updatedCatalog = catalog.updateFrom(fullUpdate, pruneVersions = false, groupVersionRefs = groupVersionRefs.getOrElse(true))
                 .withKeepUnusedVersions(catalog, keep.orNull?.keepUnusedVersions?.getOrElse(false) ?: false)
                 .withKeptVersions(catalog, keepRefs)
                 .let {

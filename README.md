@@ -226,6 +226,9 @@ The plugin can be configured using the `versionCatalogUpdate` block in the build
 versionCatalogUpdate {
     // sort the catalog by key (default is true)
     sortByKey = true
+    // automatically create a version.ref for libraries that share a group and end up
+    // on the same version (default is true)
+    groupVersionRefs = true
     // Referenced that are pinned are not automatically updated.
     // They are also not automatically kept however (use keep for that).
     pin {
@@ -263,6 +266,9 @@ versionCatalogUpdate {
 versionCatalogUpdate {
     // sort the catalog by key (default is true)
     sortByKey.set(true)
+    // automatically create a version.ref for libraries that share a group and end up
+    // on the same version (default is true)
+    groupVersionRefs.set(true)
     // Referenced that are pinned are not automatically updated.
     // They are also not automatically kept however (use keep for that).
     pin {
@@ -330,6 +336,7 @@ of a project. Additional version catalogs can be configured within the `versionC
 versionCatalogUpdate {
     // These options will be set as default for all version catalogs
     sortByKey = true
+    groupVersionRefs = true
     // Referenced that are pinned are not automatically updated.
     // They are also not automatically kept however (use keep for that).
     pin {
@@ -363,6 +370,7 @@ versionCatalogUpdate {
 versionCatalogUpdate {
     // These options will be set as default for all version catalogs
     sortByKey.set(true)
+    groupVersionRefs.set(true)
     // Referenced that are pinned are not automatically updated.
     // They are also not automatically kept however (use keep for that).
     pin {
@@ -394,7 +402,7 @@ By configuring additional version catalogs, new tasks in the form of `versionCat
 For example, when declaring a `myOtherCatalog` catalog, the tasks `versionCatalogUpdateMyOtherCatalog`, `versionCatalogFormatMyotherCatalog`
 and `versionCatalogAppyUpdatesMyOtherCatalog` are configured. These work the same as the default tasks
 and have the same available options. Each version catalog definition can specify configuration for
-`sortByKey` and the `pin` and `keep` blocks. If not defined, the default options will be applied for those options.
+`sortByKey`, `groupVersionRefs` and the `pin` and `keep` blocks. If not defined, the default options will be applied for those options.
 
 ### Changing the default version catalog
 By the default the plugin uses `gradle/libs.versions.toml` as the primary version catalog file.

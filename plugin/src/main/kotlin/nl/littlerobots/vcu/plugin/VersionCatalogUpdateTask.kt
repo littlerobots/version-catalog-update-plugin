@@ -82,6 +82,10 @@ abstract class VersionCatalogUpdateTask : DefaultTask() {
     @get:Optional
     abstract val sortByKey: Property<Boolean>
 
+    @get:Input
+    @get:Optional
+    abstract val groupVersionRefs: Property<Boolean>
+
     @get:Internal
     internal abstract val versionSelector: Property<ModuleVersionSelector>
 
@@ -145,7 +149,8 @@ abstract class VersionCatalogUpdateTask : DefaultTask() {
         val updatedCatalog = currentCatalog.updateFrom(
             catalog = catalogFromDependencies
                 .withPins(pins),
-            pruneVersions = true
+            pruneVersions = true,
+            groupVersionRefs = groupVersionRefs.getOrElse(true)
         ).withKeepUnusedVersions(currentCatalog, keep.orNull?.keepUnusedVersions?.getOrElse(false) ?: false)
             .withKeptVersions(currentCatalog, keepRefs)
             .let {
@@ -370,7 +375,7 @@ abstract class VersionCatalogUpdateTask : DefaultTask() {
         val currentResolved = currentCatalog.resolveVersions()
         // the update as if the pins are reverted, e.g. all possible updates
         val updatedResolved = updatedCatalog
-            .updateFrom(updatedCatalog.withPins(pins), pruneVersions = false)
+            .updateFrom(updatedCatalog.withPins(pins), pruneVersions = false, groupVersionRefs = groupVersionRefs.getOrElse(true))
             .resolveVersions()
         val catalogFile = this.catalogFile.get()
 

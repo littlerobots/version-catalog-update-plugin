@@ -66,6 +66,7 @@ class VersionCatalogUpdatePlugin : Plugin<Project> {
             VersionCatalogApplyUpdatesTask::class.java
         ) { task ->
             task.sortByKey.set(versionCatalogConfig.sortByKey)
+            task.groupVersionRefs.set(versionCatalogConfig.groupVersionRefs)
             task.keep.set(
                 project.provider {
                     project.objects.newInstance(
@@ -84,6 +85,7 @@ class VersionCatalogUpdatePlugin : Plugin<Project> {
             VersionCatalogFormatTask::class.java
         ) { task ->
             task.sortByKey.set(versionCatalogConfig.sortByKey)
+            task.groupVersionRefs.set(versionCatalogConfig.groupVersionRefs)
             task.keep.set(
                 project.provider {
                     project.objects.newInstance(
@@ -122,6 +124,7 @@ class VersionCatalogUpdatePlugin : Plugin<Project> {
                 }
             )
             task.sortByKey.set(versionCatalogConfig.sortByKey)
+            task.groupVersionRefs.set(versionCatalogConfig.groupVersionRefs)
             task.catalogFile.set(versionCatalogConfig.catalogFile.asFile)
             task.notCompatibleWithConfigurationCache("Uses project")
             task.outputs.upToDateWhen { false }
@@ -134,6 +137,7 @@ class VersionCatalogUpdatePlugin : Plugin<Project> {
 
 private fun VersionCatalogConfig.applyDefaultSettings(extension: VersionCatalogUpdateExtension): VersionCatalogConfig {
     sortByKey.convention(extension.sortByKey)
+    groupVersionRefs.convention(extension.groupVersionRefs)
     pins.applyDefaultSettings(extension.pins)
     keep.applyDefaultSettings(extension.keep)
     keep.keepUnusedVersions.convention(extension.keep.keepUnusedVersions)
