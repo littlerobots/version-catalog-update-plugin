@@ -58,10 +58,13 @@ data class Comments(
  *
  * @param catalog the catalog to use for updating
  * @param pruneVersions whether to remove unused versions from the catalog, defaults to true
+ * @param groupVersionRefs whether to automatically create a version reference for libraries that
+ * share a group and end up on the same version, defaults to true
  */
 fun VersionCatalog.updateFrom(
     catalog: VersionCatalog,
-    pruneVersions: Boolean = true
+    pruneVersions: Boolean = true,
+    groupVersionRefs: Boolean = true
 ): VersionCatalog {
     // Note that in theory there could be multiple mappings for the same module, those are collapsed here
     val libraryKeys = this.libraries.map { it.value.module to it.key }.toMap()
@@ -117,7 +120,9 @@ fun VersionCatalog.updateFrom(
     // check libraries for possible groupings (= same group + same version)
     // reuse if a reference exist or create if group size > 1
     // collect all version refs that point to a single group with all the libs using the same version
-    collectVersionReferenceForGroups(libraries, versions)
+    if (groupVersionRefs) {
+        collectVersionReferenceForGroups(libraries, versions)
+    }
 
     val result = this.copy(
         versions = versions,

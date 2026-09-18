@@ -40,6 +40,10 @@ abstract class VersionCatalogFormatTask @Inject constructor() : DefaultTask() {
     @get:Optional
     abstract val sortByKey: Property<Boolean>
 
+    @get:Input
+    @get:Optional
+    abstract val groupVersionRefs: Property<Boolean>
+
     @get:Internal
     abstract val keep: Property<KeepConfigurationInput>
 
@@ -58,7 +62,7 @@ abstract class VersionCatalogFormatTask @Inject constructor() : DefaultTask() {
         val keepRefs = this.keepRefs + getKeepRefsFromComments(catalog)
 
         // run an "update" to group versions
-        val updated = catalog.updateFrom(catalog)
+        val updated = catalog.updateFrom(catalog, groupVersionRefs = groupVersionRefs.getOrElse(true))
             .withKeepUnusedVersions(catalog, keep.orNull?.keepUnusedVersions?.getOrElse(false) ?: false)
             .withKeptVersions(catalog, keepRefs)
             .let {

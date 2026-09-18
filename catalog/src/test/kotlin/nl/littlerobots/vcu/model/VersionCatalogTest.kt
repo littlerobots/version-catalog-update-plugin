@@ -104,6 +104,50 @@ class VersionCatalogTest {
     }
 
     @Test
+    fun `updateCatalog does not add version for modules in the same group when groupVersionRefs is false`() {
+        val catalog = VersionCatalog(
+            emptyMap(),
+            emptyMap(),
+            emptyMap(),
+            emptyMap()
+        )
+        val updatedCatalog = VersionCatalog(
+            emptyMap(),
+            mapOf(
+                "generated-library-reference" to Library(
+                    module = "nl.littlerobots.test:example",
+                    version = VersionDefinition.Simple("1.0")
+                ),
+                "generated-library-reference-2" to Library(
+                    module = "nl.littlerobots.test:example2",
+                    version = VersionDefinition.Simple("1.0")
+                )
+            ),
+            emptyMap(),
+            emptyMap()
+        )
+
+        val result = catalog.updateFrom(updatedCatalog, groupVersionRefs = false)
+
+        assertEquals(2, result.libraries.size)
+        assertNull(result.versions["nl-littlerobots-test"])
+        assertEquals(
+            Library(
+                module = "nl.littlerobots.test:example",
+                version = VersionDefinition.Simple("1.0")
+            ),
+            result.libraries["generated-library-reference"]
+        )
+        assertEquals(
+            Library(
+                module = "nl.littlerobots.test:example2",
+                version = VersionDefinition.Simple("1.0")
+            ),
+            result.libraries["generated-library-reference-2"]
+        )
+    }
+
+    @Test
     fun `updateCatalog adds version for modules with the most common version`() {
         val catalog = VersionCatalog(
             emptyMap(),

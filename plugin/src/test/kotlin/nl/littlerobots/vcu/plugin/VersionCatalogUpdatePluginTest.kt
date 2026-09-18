@@ -623,6 +623,49 @@ class VersionCatalogUpdatePluginTest {
     }
 
     @Test
+    fun `groupVersionRefs set to false does not create a version reference for libraries sharing a group`() {
+        buildFile.writeText(
+            """
+            plugins {
+                id "nl.littlerobots.version-catalog-update"
+            }
+
+             versionCatalogUpdate {
+                groupVersionRefs = false
+            }
+            """.trimIndent()
+        )
+
+        val toml = """
+            [libraries]
+            example = "nl.littlerobots.test:example:1.0"
+            example2 = "nl.littlerobots.test:example2:1.0"
+
+        """.trimIndent()
+
+        File(tempDir.root, "gradle").mkdir()
+        File(tempDir.root, "gradle/libs.versions.toml").writeText(toml)
+
+        GradleRunner.create()
+            .withProjectDir(tempDir.root)
+            .withArguments("versionCatalogUpdate", "-Pnl.littlerobots.vcu.resolver=true")
+            .withPluginClasspath()
+            .build()
+
+        val libs = File(tempDir.root, "gradle/libs.versions.toml").readText()
+
+        assertEquals(
+            """
+                [libraries]
+                example = "nl.littlerobots.test:example:1.0"
+                example2 = "nl.littlerobots.test:example2:1.0"
+
+            """.trimIndent(),
+            libs
+        )
+    }
+
+    @Test
     fun `table and key comments are retained`() {
         val reportJson = tempDir.newFile()
 

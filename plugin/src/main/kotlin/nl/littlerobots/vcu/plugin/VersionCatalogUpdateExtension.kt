@@ -40,6 +40,9 @@ abstract class VersionCatalogUpdateExtension @Inject constructor(private val obj
     abstract val sortByKey: Property<Boolean>
 
     @get:Optional
+    abstract val groupVersionRefs: Property<Boolean>
+
+    @get:Optional
     abstract val catalogFile: RegularFileProperty
 
     @get:Nested
@@ -82,6 +85,9 @@ abstract class VersionCatalogConfig @Inject constructor(val name: String) {
     abstract val catalogFile: RegularFileProperty
     @get:Optional
     abstract val sortByKey: Property<Boolean>
+
+    @get:Optional
+    abstract val groupVersionRefs: Property<Boolean>
 
     @get:Nested
     abstract val pins: PinConfiguration
