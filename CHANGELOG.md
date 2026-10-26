@@ -1,4 +1,8 @@
 # Changelog
+Version 1.1.2
+-------------
+* Added a setting to disable the version grouping ([#199](https://github.com/littlerobots/version-catalog-update-plugin/issues/199))
+
 Version 1.1.1
 -----
 * Added output file for the format task so that it is now correctly cachable ([#183](https://github.com/littlerobots/version-catalog-update-plugin/issues/183))
